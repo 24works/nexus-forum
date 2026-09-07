@@ -56,6 +56,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         )
         .bind(title, content, rendered.html, tags, now(), threadId)
         .run();
+      // The board card shows the latest thread's title, so keep it in sync.
+      await refreshBoardSummary(thread.board_id);
       await audit(user, "edit_thread", "thread", threadId, `"${title}"`);
       return jsonOk({ threadId });
     }

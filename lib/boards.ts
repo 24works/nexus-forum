@@ -12,11 +12,14 @@ export async function refreshBoardSummary(boardId: number): Promise<void> {
     id: number;
     title: string;
     username: string | null;
-    created_at: number;
+    activity_at: number;
   }>(
     db,
-    `SELECT t.id, t.title, u.username, t.created_at
-     FROM threads t LEFT JOIN users u ON u.id = t.last_reply_user_id
+    `SELECT t.id, t.title, COALESCE(u.username, au.username) AS username,
+            COALESCE(t.last_reply_at, t.created_at) AS activity_at
+     FROM threads t
+     LEFT JOIN users u ON u.id = t.last_reply_user_id
+     LEFT JOIN users au ON au.id = t.user_id
      WHERE t.board_id = ? AND t.is_deleted = 0
      ORDER BY COALESCE(t.last_reply_at, t.created_at) DESC
      LIMIT 1`,
@@ -48,7 +51,7 @@ export async function refreshBoardSummary(boardId: number): Promise<void> {
       latest?.id ?? null,
       latest?.title ?? null,
       latest?.username ?? null,
-      latest?.created_at ?? null,
+      latest?.activity_at ?? null,
       boardId
     )
     .run();

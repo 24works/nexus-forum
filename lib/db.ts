@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { SCHEMA_STATEMENTS } from "@/db/schema";
+import { SCHEMA_STATEMENTS, UNIQUE_EMAIL_INDEX_SQL } from "@/db/schema";
 
 export type DB = D1Database;
 
@@ -33,6 +33,13 @@ async function applySchema(db: DB): Promise<void> {
   // SCHEMA_STATEMENTS is an explicit array of complete SQL statements
   // (trigger bodies are kept whole, so naive `;` splitting is avoided).
   await db.batch(SCHEMA_STATEMENTS.map((sql) => db.prepare(sql)));
+  // Best-effort: a legacy database with duplicate emails cannot take the
+  // unique index; everything else must still initialize.
+  try {
+    await db.prepare(UNIQUE_EMAIL_INDEX_SQL).run();
+  } catch (err) {
+    console.error("[db] could not create unique email index:", err);
+  }
 }
 
 /** Runs a batch of prepared statements atomically. */

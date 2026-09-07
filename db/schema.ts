@@ -183,7 +183,6 @@ export const SCHEMA_STATEMENTS: string[] = [
   `CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)`,
   `CREATE INDEX IF NOT EXISTS idx_email_tokens ON email_tokens(token_hash)`,
   `CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at)`,
-
   // ---- FTS5 full-text search (external-content tables + sync triggers) ----
   `CREATE VIRTUAL TABLE IF NOT EXISTS threads_fts USING fts5(title, content, content='threads', content_rowid='id')`,
   `CREATE TRIGGER IF NOT EXISTS threads_ai AFTER INSERT ON threads BEGIN
@@ -217,6 +216,14 @@ END`,
   ('off-topic', 'Off-Topic', 'Relaxed conversations that do not fit elsewhere.', 'everyone', 5)`,
   `INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', '1')`,
 ];
+
+/**
+ * Statement applied separately from the main batch: creating a UNIQUE index
+ * fails on legacy databases that already contain duplicate emails, and that
+ * must not prevent the rest of the schema from initializing.
+ */
+export const UNIQUE_EMAIL_INDEX_SQL =
+  `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
 
 export const SEED_ADMIN_USERNAME = "admin";
 

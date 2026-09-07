@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Header } from "@/components/header";
-import { currentUserRSC, resolveThemeClass, unreadCountRSC } from "@/lib/session-rsc";
+import { currentUserRSC, resolveTheme, unreadCountRSC } from "@/lib/session-rsc";
 import { forumName, forumTagline } from "@/lib/settings";
 
 export const metadata: Metadata = {
@@ -25,15 +25,24 @@ export const viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const [user, unread, theme] = await Promise.all([currentUserRSC(), unreadCountRSC(), resolveThemeClass()]);
+  const [user, unread, theme] = await Promise.all([currentUserRSC(), unreadCountRSC(), resolveTheme()]);
 
   return (
-    <html lang="en" className={theme === "dark" ? "dark" : undefined} suppressHydrationWarning>
+    <html lang="en" className={theme.themeClass === "dark" ? "dark" : undefined} suppressHydrationWarning>
       <head>
         <meta name="robots" content="index,follow" />
+        {theme.isSystem && (
+          // "System" theme: follow the OS preference before first paint.
+          <script
+            dangerouslySetInnerHTML={{
+              __html:
+                "if(matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.classList.add('dark')}",
+            }}
+          />
+        )}
       </head>
       <body className="min-h-dvh font-sans antialiased">
-        <Header user={user} unread={unread} theme={theme} />
+        <Header user={user} unread={unread} theme={theme.themeClass} />
         <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-4 py-6 sm:px-6">
           <main className="flex-1">{children}</main>
           <footer className="mt-10 border-t border-slate-200 pt-5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">

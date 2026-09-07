@@ -6,6 +6,7 @@ import { canModerate } from "@/lib/auth";
 import { Avatar, Badge, RoleBadge } from "@/components/ui";
 import { PostContent } from "@/components/post-content";
 import { PostActions } from "@/components/post-actions";
+import { ThreadOpActions } from "@/components/thread-op-actions";
 import { FormattedDate } from "@/components/time";
 import { pluralize } from "@/lib/time";
 
@@ -15,12 +16,17 @@ export function PostRow({
   currentUser,
   boardSlug,
   number,
+  isOp = false,
+  opTags,
 }: {
   post: PostView;
   threadId: number;
   currentUser: PublicUser | null;
   boardSlug: string;
   number: number;
+  /** True when this row renders the thread's own first post (not a `posts` row). */
+  isOp?: boolean;
+  opTags?: string;
 }) {
   const isAuthor = Boolean(currentUser && currentUser.id === post.user_id);
   const isMod = canModerate(currentUser);
@@ -47,7 +53,7 @@ export function PostRow({
           {isDeleted && <Badge color="rose">Removed</Badge>}
         </div>
         <div className="hidden text-center text-[11px] leading-5 text-slate-400 sm:block">
-          Joined <FormattedDate ts={post.created_at} /> ·
+          Joined <FormattedDate ts={post.author_created_at ?? post.created_at} /> ·
           <br />
           {pluralize(post.author_post_count ?? 0, "post", "posts")}
         </div>
@@ -64,7 +70,7 @@ export function PostRow({
             </a>
           </span>
           <div className="flex items-center gap-1">
-            {signedIn && !isDeleted && (
+            {signedIn && !isDeleted && !isOp && (
               <Link
                 href={`/t/${threadId}?quote=${post.id}`}
                 className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
@@ -90,13 +96,26 @@ export function PostRow({
             )}
             {signedIn && (
               <div className="mt-3 border-t border-slate-100 pt-2 dark:border-slate-800">
-                <PostActions
-                  postId={post.id}
-                  threadId={threadId}
-                  isOwner={isAuthor}
-                  isModerator={isMod}
-                  initialContent={post.content}
-                />
+                {isOp ? (
+                  <ThreadOpActions
+                    threadId={threadId}
+                    boardSlug={boardSlug}
+                    isOwner={isAuthor}
+                    isModerator={isMod}
+                    initialTitle={post.thread_title ?? ""}
+                    initialContent={post.content}
+                    initialTags={opTags ?? ""}
+                  />
+                ) : (
+                  <PostActions
+                    key={post.updated_at ?? 0}
+                    postId={post.id}
+                    threadId={threadId}
+                    isOwner={isAuthor}
+                    isModerator={isMod}
+                    initialContent={post.content}
+                  />
+                )}
               </div>
             )}
           </>

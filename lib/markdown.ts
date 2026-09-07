@@ -86,10 +86,20 @@ function renderInline(escaped: string): string {
     return `${lead}<a href="${escapeHtml(cleaned)}" rel="nofollow noopener noreferrer" target="_blank">${escapeHtml(url)}</a>`;
   });
 
-  // Mentions -> profile links.
+  // Mentions -> profile links. Generated anchors are stashed first so the
+  // mention pass cannot rewrite "@name" sequences inside hrefs or link text.
+  const anchors: string[] = [];
+  s = s.replace(/<a\s[^>]*>[\s\S]*?<\/a>/g, (m) => {
+    const idx = anchors.length;
+    anchors.push(m);
+    return `\u0000ANCHOR${idx}:`;
+  });
+
   s = s.replace(/@([A-Za-z0-9_]{2,30})/g, (_m, username: string) => {
     return `<a class="mention" href="/u/${escapeHtml(username)}">@${escapeHtml(username)}</a>`;
   });
+
+  s = s.replace(/\u0000ANCHOR(\d+):/g, (_m, idx: string) => anchors[Number(idx)] ?? "");
 
   // Strong / emphasis / strikethrough.
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");

@@ -12,12 +12,10 @@ export function ReplyForm({
   threadId,
   initialQuote,
   locked,
-  totalPages,
 }: {
   threadId: number;
   initialQuote?: string;
   locked: boolean;
-  totalPages: number;
 }) {
   const router = useRouter();
   const [content, setContent] = useState(initialQuote ?? "");
@@ -34,7 +32,7 @@ export function ReplyForm({
     setBusy(true);
     setError(null);
     try {
-      const res = await api(`/api/threads/${threadId}/reply`, {
+      const res = await api<{ page?: number }>(`/api/threads/${threadId}/reply`, {
         method: "POST",
         json: { content },
       });
@@ -45,7 +43,8 @@ export function ReplyForm({
       }
       setContent("");
       setBusy(false);
-      router.push(`/t/${threadId}?page=${totalPages}`);
+      // The API reports the page the new reply landed on.
+      router.push(`/t/${threadId}?page=${res.page ?? 1}`);
       router.refresh();
     } catch {
       setError("A network error occurred.");

@@ -8,7 +8,10 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "bbs-develop-by-agent",
-	"compatibility_date": "2026-09-07",
+	// Pinned to a date comfortably supported by the workerd runtime bundled with
+	// the installed wrangler/vite-plugin versions. Avoids "compatibility date is
+	// newer than this server binary" failures in local dev and CI.
+	"compatibility_date": "2026-05-07",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "vinext/server/fetch-handler",
 	"assets": {

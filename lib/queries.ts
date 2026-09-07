@@ -1,4 +1,5 @@
 import { getDb, ensureSchema, now, all, row, withPagination, Paged, scalar } from "@/lib/db";
+import { escapeHtml } from "@/lib/markdown";
 import {
   BoardRow,
   NotificationRow,
@@ -21,6 +22,7 @@ export interface ThreadView extends ThreadRow {
 export interface PostView extends PostRow {
   author_username?: string;
   author_post_count?: number;
+  author_created_at?: number;
   thread_title?: string;
   thread_slug?: string;
 }
@@ -45,11 +47,12 @@ export async function listBoards(userRole: PublicUser | null): Promise<BoardRow[
   await ensureSchema();
   const db = getDb();
   const { results } = await db.prepare("SELECT * FROM boards ORDER BY position ASC, id ASC").all<BoardRow>();
-  const role = userRole?.role ?? "member";
+  const role = userRole?.role ?? null;
   return results.filter((b) => {
     if (b.is_enabled === 0 && role !== "admin") return false;
     if (b.role === "admin") return role === "admin";
     if (b.role === "moderator") return role === "admin" || role === "moderator";
+    if (b.role === "member") return role !== null; // any signed-in user
     return true;
   });
 }
@@ -65,10 +68,11 @@ export async function getBoardBySlugRow(db: D1Database, slug: string): Promise<B
 }
 
 export function boardVisibleTo(board: BoardRow, user: PublicUser | null): boolean {
-  const role = user?.role ?? "member";
+  const role = user?.role ?? null;
   if (board.is_enabled === 0 && role !== "admin") return false;
   if (board.role === "admin") return role === "admin";
   if (board.role === "moderator") return role === "admin" || role === "moderator";
+  if (board.role === "member") return role !== null; // any signed-in user
   return true;
 }
 
@@ -140,7 +144,8 @@ export async function threadPosts(
   const countSql = "SELECT COUNT(*) AS n FROM posts WHERE thread_id = ?";
   const rowsSql = `
     SELECT p.*, u.username AS author_username, u.role AS author_role, u.bio AS author_bio,
-           u.post_count AS author_post_count,
+           u.post_count AS author_post_count, u.created_at AS author_created_at,
+           u.status AS author_status,
            ti.title AS thread_title
     FROM posts p
     LEFT JOIN users u ON u.id = p.user_id
@@ -212,7 +217,8 @@ export async function userThreads(userId: number, page: number, perPage: number)
 export async function userPosts(userId: number, page: number, perPage: number): Promise<Paged<PostView>> {
   await ensureSchema();
   const db = getDb();
-  const countSql = "SELECT COUNT(*) AS n FROM posts WHERE user_id = ? AND is_deleted = 0";
+  const countSql =
+    "SELECT COUNT(*) AS n FROM posts p JOIN threads t ON t.id = p.thread_id WHERE p.user_id = ? AND p.is_deleted = 0 AND t.is_deleted = 0";
   const rowsSql = `
     SELECT p.*, u.username AS author_username, t.title AS thread_title, t.id AS thread_id
     FROM posts p
@@ -246,6 +252,29 @@ export async function getThreadPostsForQuote(postId: number): Promise<string | n
   return post?.content ?? null;
 }
 
+/** 1-based page on which a post appears inside its thread (for deep links). */
+export async function postPageInThread(postId: number, perPage: number): Promise<number | null> {
+  await ensureSchema();
+  const post = await row<{ thread_id: number; created_at: number }>(
+    getDb(),
+    "SELECT thread_id, created_at FROM posts WHERE id = ? AND is_deleted = 0",
+    postId
+  );
+  if (!post) return null;
+  const before = await row<{ n: number }>(
+    getDb(),
+    `SELECT COUNT(*) AS n FROM posts
+     WHERE thread_id = ? AND is_deleted = 0
+       AND (created_at < ? OR (created_at = ? AND id < ?))`,
+    post.thread_id,
+    post.created_at,
+    post.created_at,
+    postId
+  );
+  const ordinal = Number(before?.n ?? 0) + 1;
+  return Math.max(1, Math.ceil(ordinal / perPage));
+}
+
 // ---------------------------------------------------------------------------
 // Search
 // ---------------------------------------------------------------------------
@@ -275,6 +304,26 @@ export interface SearchResult {
   snippet: string | null;
   type: "thread" | "post";
   postId?: number;
+  postPage?: number;
+}
+
+/**
+ * Makes an FTS5 snippet safe for `dangerouslySetInnerHTML`: everything is
+ * HTML-escaped first, then only the `<mark>` highlight markers injected by
+ * `snippet()` are restored. Raw content can never smuggle markup through.
+ */
+function safeSnippet(raw: unknown): string | null {
+  if (typeof raw !== "string" || !raw) return null;
+  return escapeHtml(raw)
+    .replace(/&lt;mark&gt;/g, "<mark>")
+    .replace(/&lt;\/mark&gt;/g, "</mark>");
+}
+
+/** SQL clause restricting search to boards visible to the given viewer role. */
+function searchBoardClause(role: string | undefined): string {
+  if (role === "admin") return "AND b.is_enabled = 1";
+  if (role === "moderator") return "AND b.is_enabled = 1 AND b.role IN ('everyone', 'moderator')";
+  return "AND b.is_enabled = 1 AND b.role = 'everyone'";
 }
 
 export async function searchForum(opts: {
@@ -282,67 +331,96 @@ export async function searchForum(opts: {
   boardId?: number;
   page: number;
   perPage: number;
+  viewerRole?: string | null;
 }): Promise<Paged<SearchResult>> {
   await ensureSchema();
   const db = getDb();
   const q = opts.query.trim().slice(0, 100);
-  const results = await searchThreadsViaFts(db, q, opts.boardId, opts.perPage);
-  if (results.length > 0) {
-    const total = await ftsThreadCount(db, q, opts.boardId);
-    return { items: results, total, page: opts.page, perPage: opts.perPage, totalPages: Math.max(1, Math.ceil(total / opts.perPage)) };
-  }
-  return searchViaLike(db, q, opts.boardId, opts.page, opts.perPage);
-}
+  const safePage = Math.max(1, opts.page);
 
-async function ftsThreadRows(db: D1Database, q: string, boardId: number | undefined, limit: number): Promise<SearchResult[]> {
-  const ftsq = sanitizeFtsQuery(q);
-  const boardClause = boardId ? "AND t.board_id = ?" : "";
-  const params: unknown[] = [ftsq];
-  if (boardId) params.push(boardId);
-  params.push(limit);
-
-  const { results } = await db
-    .prepare(
-      `SELECT t.id AS threadId, t.title AS threadTitle, t.created_at AS createdAt,
-              u.username AS authorUsername, b.slug AS boardSlug, b.name AS boardName,
-              t.reply_count AS replyCount,
-              snippet(threads_fts, 1, '<mark>', '</mark>', '…', 14) AS snippet
-       FROM threads_fts
-       JOIN threads t ON t.id = threads_fts.rowid
-       JOIN users u ON u.id = t.user_id
-       JOIN boards b ON b.id = t.board_id
-       WHERE threads_fts MATCH ? AND t.is_deleted = 0 ${boardClause}
-       ORDER BY rank
-       LIMIT ?`
-    )
-    .bind(...params)
-    .all()
-    .catch(() => ({ results: [], success: false }));
-  return (results as unknown as SearchResult[]) ?? [];
-}
-
-async function ftsThreadCount(db: D1Database, q: string, boardId: number | undefined): Promise<number> {
-  const ftsq = sanitizeFtsQuery(q);
-  const boardClause = boardId ? "AND t.board_id = ?" : "";
-  const params: unknown[] = [ftsq];
-  if (boardId) params.push(boardId);
-  const found = await db
-    .prepare(
-      `SELECT COUNT(*) AS n
-       FROM threads_fts JOIN threads t ON t.id = threads_fts.rowid
-       WHERE threads_fts MATCH ? AND t.is_deleted = 0 ${boardClause}`
-    )
-    .bind(...params)
-    .first<{ n: number }>()
-    .catch(() => ({ n: 0 }));
-  return found?.n ?? 0;
-}
-
-async function searchThreadsViaFts(db: D1Database, q: string, boardId: number | undefined, limit: number): Promise<SearchResult[]> {
   try {
-    return await ftsThreadRows(db, q, boardId, limit);
+    const ftsq = sanitizeFtsQuery(q);
+    if (!ftsq) return searchViaLike(db, q, opts.boardId, safePage, opts.perPage, opts.viewerRole);
+
+    const boardClause = opts.boardId ? "AND t.board_id = ?" : "";
+    const roleClause = searchBoardClause(opts.viewerRole ?? undefined);
+
+    // Threads matching on title/content...
+    const threadMatches = await db
+      .prepare(
+        `SELECT 'thread' AS type, t.id AS threadId, NULL AS postId, NULL AS postOrdinal,
+                t.title AS threadTitle, t.created_at AS createdAt,
+                u.username AS authorUsername, b.slug AS boardSlug, b.name AS boardName,
+                t.reply_count AS replyCount,
+                snippet(threads_fts, 1, '<mark>', '</mark>', '…', 14) AS rawSnippet
+         FROM threads_fts
+         JOIN threads t ON t.id = threads_fts.rowid
+         JOIN users u ON u.id = t.user_id
+         JOIN boards b ON b.id = t.board_id
+         WHERE threads_fts MATCH ? AND t.is_deleted = 0 ${boardClause} ${roleClause}
+         ORDER BY rank`
+      )
+      .bind(...(opts.boardId ? [ftsq, opts.boardId] : [ftsq]))
+      .all<Record<string, unknown>>()
+      .then((r) => r.results ?? [])
+      .catch(() => [] as Record<string, unknown>[]);
+
+    // ...and individual posts matching on content.
+    const postMatches = await db
+      .prepare(
+        `SELECT 'post' AS type, ti.id AS threadId, p.id AS postId,
+                (SELECT COUNT(*) FROM posts p2
+                  WHERE p2.thread_id = ti.id AND p2.is_deleted = 0
+                    AND (p2.created_at < p.created_at
+                         OR (p2.created_at = p.created_at AND p2.id <= p.id))) AS postOrdinal,
+                ti.title AS threadTitle, p.created_at AS createdAt,
+                u.username AS authorUsername, b.slug AS boardSlug, b.name AS boardName,
+                ti.reply_count AS replyCount,
+                snippet(posts_fts, 0, '<mark>', '</mark>', '…', 14) AS rawSnippet
+         FROM posts_fts
+         JOIN posts p ON p.id = posts_fts.rowid
+         JOIN threads ti ON ti.id = p.thread_id
+         JOIN users u ON u.id = p.user_id
+         JOIN boards b ON b.id = ti.board_id
+         WHERE posts_fts MATCH ? AND p.is_deleted = 0 AND ti.is_deleted = 0
+           ${opts.boardId ? "AND ti.board_id = ?" : ""} ${roleClause}
+         ORDER BY rank`
+      )
+      .bind(...(opts.boardId ? [ftsq, opts.boardId] : [ftsq]))
+      .all<Record<string, unknown>>()
+      .then((r) => r.results ?? [])
+      .catch(() => [] as Record<string, unknown>[]);
+
+    // Merge, rank threads slightly above their own posts, then paginate.
+    type Ranked = Record<string, unknown> & { r: number };
+    const merged: Ranked[] = [
+      ...threadMatches.map((m, i) => ({ ...m, r: i })),
+      ...postMatches.map((m, i) => ({ ...m, r: 1000 + i })),
+    ];
+    const total = merged.length;
+    const totalPages = Math.max(1, Math.ceil(total / opts.perPage));
+    const page = Math.min(safePage, totalPages);
+    const offset = (page - 1) * opts.perPage;
+    const items: SearchResult[] = merged.slice(offset, offset + opts.perPage).map((m) => {
+      const isPost = m.type === "post";
+      const ordinal = Number(m.postOrdinal ?? 1);
+      return {
+        threadId: Number(m.threadId),
+        threadTitle: String(m.threadTitle ?? ""),
+        createdAt: Number(m.createdAt),
+        authorUsername: (m.authorUsername as string) ?? null,
+        boardSlug: String(m.boardSlug ?? ""),
+        boardName: String(m.boardName ?? ""),
+        replyCount: Number(m.replyCount ?? 0),
+        snippet: safeSnippet(m.rawSnippet),
+        type: isPost ? "post" : "thread",
+        postId: isPost ? Number(m.postId) : undefined,
+        postPage: isPost ? Math.max(1, Math.ceil(ordinal / opts.perPage)) : undefined,
+      };
+    });
+    return { items, total, page, perPage: opts.perPage, totalPages };
   } catch {
-    return [];
+    return searchViaLike(db, q, opts.boardId, safePage, opts.perPage, opts.viewerRole);
   }
 }
 
@@ -351,16 +429,20 @@ async function searchViaLike(
   q: string,
   boardId: number | undefined,
   page: number,
-  perPage: number
+  perPage: number,
+  viewerRole?: string | null
 ): Promise<Paged<SearchResult>> {
   const like = `%${escapeLike(q)}%`;
   const boardClause = boardId ? "AND t.board_id = ?" : "";
+  const roleClause = searchBoardClause(viewerRole ?? undefined);
   const params: unknown[] = [like, like];
   if (boardId) params.push(boardId);
 
   const countFound = await db
     .prepare(
-      `SELECT COUNT(*) AS n FROM threads t WHERE t.is_deleted = 0 AND (t.title LIKE ? ESCAPE '\\' OR t.content LIKE ? ESCAPE '\\') ${boardClause}`
+      `SELECT COUNT(*) AS n FROM threads t
+       JOIN boards b ON b.id = t.board_id
+       WHERE t.is_deleted = 0 AND (t.title LIKE ? ESCAPE '\\' OR t.content LIKE ? ESCAPE '\\') ${boardClause} ${roleClause}`
     )
     .bind(...params)
     .first<{ n: number }>();
@@ -371,13 +453,14 @@ async function searchViaLike(
 
   const { results } = await db
     .prepare(
-      `SELECT t.id AS threadId, t.title AS threadTitle, t.created_at AS createdAt,
+      `SELECT 'thread' AS type, t.id AS threadId, NULL AS postId, t.title AS threadTitle,
+              t.created_at AS createdAt,
               u.username AS authorUsername, b.slug AS boardSlug, b.name AS boardName,
-              t.reply_count AS replyCount, NULL AS snippet, 'thread' AS type
+              t.reply_count AS replyCount, NULL AS snippet
        FROM threads t
        JOIN users u ON u.id = t.user_id
        JOIN boards b ON b.id = t.board_id
-       WHERE t.is_deleted = 0 AND (t.title LIKE ? ESCAPE '\\' OR t.content LIKE ? ESCAPE '\\') ${boardClause}
+       WHERE t.is_deleted = 0 AND (t.title LIKE ? ESCAPE '\\' OR t.content LIKE ? ESCAPE '\\') ${boardClause} ${roleClause}
        ORDER BY t.created_at DESC LIMIT ? OFFSET ?`
     )
     .bind(...params, perPage, offset)

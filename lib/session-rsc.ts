@@ -51,12 +51,27 @@ export async function themePreferenceRSC(): Promise<Theme> {
 
 /** Resolves the theme to an explicit light/dark class for <html>. */
 export async function resolveThemeClass(): Promise<"light" | "dark"> {
+  return (await resolveTheme()).themeClass;
+}
+
+/**
+ * Full theme resolution: cookie first, then the signed-in user's saved
+ * preference, else "system" (OS preference applied by a pre-hydration
+ * script on the client).
+ */
+export async function resolveTheme(): Promise<{ themeClass: "light" | "dark"; isSystem: boolean }> {
   const pref = await themePreferenceRSC();
-  if (pref === "dark") return "dark";
-  if (pref === "light") return "light";
-  // system: choose the default rendered theme (light) unless CSS media queries
-  // are used later by the client toggle.
-  return "light";
+  if (pref === "dark") return { themeClass: "dark", isSystem: false };
+  if (pref === "light") return { themeClass: "light", isSystem: false };
+  try {
+    const user = await currentUserRSC();
+    if (user && (user.theme === "light" || user.theme === "dark")) {
+      return { themeClass: user.theme, isSystem: false };
+    }
+  } catch {
+    // Rendering must survive database hiccups; fall back to system.
+  }
+  return { themeClass: "light", isSystem: true };
 }
 
 /** Current request URL for link building / canonical endpoints. */

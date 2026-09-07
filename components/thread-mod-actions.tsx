@@ -36,24 +36,24 @@ export function ThreadModActions({
   const action = async (body: Record<string, unknown>) => {
     setBusy(true);
     setError(null);
-    const res = await api(`/api/threads/${threadId}`, {
-      method: "PATCH",
-      json: body,
-    });
-    setBusy(false);
-    if (res.ok) {
-      if (body.action === "delete") {
-        router.push("/");
-        return;
-      }
-      if (body.action === "move") {
+    try {
+      const res = await api(`/api/threads/${threadId}`, {
+        method: "PATCH",
+        json: body,
+      });
+      if (res.ok) {
+        if (body.action === "delete") {
+          router.push("/");
+          return;
+        }
         router.refresh();
-        return;
+      } else {
+        setError(res.error ?? "Action failed.");
       }
-      router.refresh();
-    } else {
-      setError(res.error ?? "Action failed.");
+    } catch {
+      setError("A network error occurred.");
     }
+    setBusy(false);
   };
 
   return (
@@ -88,7 +88,16 @@ export function ThreadModActions({
       </form>
 
       {!isDeleted ? (
-        <Button size="sm" variant="danger" disabled={busy} onClick={() => action({ action: "delete" })}>
+        <Button
+          size="sm"
+          variant="danger"
+          disabled={busy}
+          onClick={() => {
+            if (window.confirm("Delete this thread? All replies will be hidden as well.")) {
+              void action({ action: "delete" });
+            }
+          }}
+        >
           <Trash2 className="size-3.5" /> Delete
         </Button>
       ) : (

@@ -63,11 +63,17 @@ function toBufferSource(input: Uint8Array): BufferSource {
 export async function hashPassword(password: string, pepper: string): Promise<string> {
   const salt = new Uint8Array(16);
   crypto.getRandomValues(salt);
+  const derived = await deriveKey(password, appendPepper(salt, pepper), PBKDF2_ITERATIONS);
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${toHex(salt)}$${toHex(derived)}`;
+}
+
+/** Mixes the (optional) pepper into the per-user salt. */
+function appendPepper(salt: Uint8Array, pepper: string): Uint8Array {
+  if (!pepper) return salt;
   const peppered = new Uint8Array(salt.length + encoder.encode(pepper).length);
   peppered.set(salt);
   peppered.set(encoder.encode(pepper), salt.length);
-  const derived = await deriveKey(password, peppered, PBKDF2_ITERATIONS);
-  return `pbkdf2$${PBKDF2_ITERATIONS}$${toHex(salt)}$${toHex(derived)}`;
+  return peppered;
 }
 
 export async function verifyPassword(password: string, stored: string, pepper: string): Promise<boolean> {
@@ -77,11 +83,16 @@ export async function verifyPassword(password: string, stored: string, pepper: s
   if (!Number.isFinite(iterations) || iterations < 10000) return false;
   const salt = fromHex(parts[2]);
   const expected = fromHex(parts[3]);
-  const peppered = new Uint8Array(salt.length + encoder.encode(pepper).length);
-  peppered.set(salt);
-  peppered.set(encoder.encode(pepper), salt.length);
-  const derived = await deriveKey(password, peppered, iterations);
-  return constantTimeEqual(toHex(derived), toHex(expected));
+  const derived = await deriveKey(password, appendPepper(salt, pepper), iterations);
+  if (constantTimeEqual(toHex(derived), toHex(expected))) return true;
+  // The hash may predate the pepper being set (or survive it being removed);
+  // fall back to the unpeppered digest so adding/removing SESSION_SECRET
+  // never locks users out.
+  if (pepper) {
+    const unpeppered = await deriveKey(password, appendPepper(salt, ""), iterations);
+    return constantTimeEqual(toHex(unpeppered), toHex(expected));
+  }
+  return false;
 }
 
 function toHex(bytes: Uint8Array): string {

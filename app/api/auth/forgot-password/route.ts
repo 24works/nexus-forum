@@ -38,8 +38,6 @@ export async function POST(req: NextRequest) {
       .bind(email)
       .first<{ id: number; username: string }>();
 
-    let debugResetLink: string | null = null;
-
     if (account) {
       const nowMs = now();
       await db.prepare("DELETE FROM email_tokens WHERE user_id = ? AND type = 'reset_password'").bind(account.id).run();
@@ -60,11 +58,15 @@ export async function POST(req: NextRequest) {
           html: `<p>We received a request to reset the password for <strong>${account.username}</strong>.</p><p><a href="${url}">Choose a new password</a></p><p>This link is valid for 1 hour.</p>`,
         });
       } else {
-        debugResetLink = url;
+        // No email provider is configured, so the message cannot be
+        // delivered. Reset links must never appear in HTTP responses (they
+        // would let anyone take over the account), so they are only logged
+        // server-side to keep local development workable.
+        console.log(`[auth] password reset link for "${account.username}" (email not configured): ${url}`);
       }
     }
 
-    return jsonOk({ sent: emailConfigured(), debugResetLink });
+    return jsonOk({ sent: emailConfigured() });
   } catch (err) {
     return jsonError(err);
   }

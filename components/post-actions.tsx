@@ -27,43 +27,59 @@ export function PostActions({ postId, threadId, isOwner, isModerator, initialCon
     if (!window.confirm("Delete this post permanently?")) return;
     setBusy(true);
     setError(null);
-    const res = await api(`/api/posts/${postId}`, { method: "DELETE" });
-    setBusy(false);
-    if (res.ok) router.refresh();
-    else setError(res.error ?? "Failed to delete post.");
+    try {
+      const res = await api(`/api/posts/${postId}`, { method: "DELETE" });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        setError(res.error ?? "Failed to delete post.");
+        setBusy(false);
+      }
+    } catch {
+      setError("A network error occurred.");
+      setBusy(false);
+    }
   };
 
   const saveEdit = async () => {
     setBusy(true);
     setError(null);
-    const res = await api(`/api/posts/${postId}`, {
-      method: "PATCH",
-      json: { content },
-    });
-    setBusy(false);
-    if (res.ok) {
-      setEditing(false);
-      router.refresh();
-    } else {
-      setError(res.error ?? "Failed to save edits.");
+    try {
+      const res = await api(`/api/posts/${postId}`, {
+        method: "PATCH",
+        json: { content },
+      });
+      if (res.ok) {
+        setEditing(false);
+        router.refresh();
+      } else {
+        setError(res.error ?? "Failed to save edits.");
+      }
+    } catch {
+      setError("A network error occurred.");
     }
+    setBusy(false);
   };
 
   const submitReport = async () => {
     setBusy(true);
     setError(null);
-    const res = await api(`/api/posts/${postId}/report`, {
-      method: "POST",
-      json: { reason },
-    });
-    setBusy(false);
-    if (res.ok) {
-      setReporting(false);
-      setReason("");
-      router.refresh();
-    } else {
-      setError(res.error ?? "Failed to submit report.");
+    try {
+      const res = await api(`/api/posts/${postId}/report`, {
+        method: "POST",
+        json: { reason },
+      });
+      if (res.ok) {
+        setReporting(false);
+        setReason("");
+        router.refresh();
+      } else {
+        setError(res.error ?? "Failed to submit report.");
+      }
+    } catch {
+      setError("A network error occurred.");
     }
+    setBusy(false);
   };
 
   if (editing) {

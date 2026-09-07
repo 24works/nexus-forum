@@ -10,7 +10,7 @@ export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  const [resetLink, setResetLink] = useState<string | null>(null);
+  const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: FormEvent) => {
@@ -18,7 +18,7 @@ export function ForgotPasswordForm() {
     setBusy(true);
     setError(null);
     try {
-      const res = await api<{ debugResetLink?: string | null }>("/api/auth/forgot-password", {
+      const res = await api<{ sent?: boolean }>("/api/auth/forgot-password", {
         method: "POST",
         json: { email },
       });
@@ -28,7 +28,7 @@ export function ForgotPasswordForm() {
         return;
       }
       setDone(true);
-      setResetLink(res.debugResetLink ?? null);
+      setSent(Boolean(res.sent));
       setBusy(false);
     } catch {
       setError("A network error occurred.");
@@ -39,18 +39,15 @@ export function ForgotPasswordForm() {
   if (done) {
     return (
       <div className="flex flex-col gap-3">
-        <p className="rounded-lg bg-emerald-50 px-3 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-          If an account exists for that email address, a password reset link has been sent. Check your inbox.
-        </p>
-        {resetLink && (
-          <div className="rounded-lg bg-slate-100 px-3 py-3 dark:bg-slate-800">
-            <p className="mb-1 text-xs font-medium text-slate-500 dark:text-slate-400">
-              Email sending is not configured — use this link directly:
-            </p>
-            <a href={resetLink} className="break-all text-sm text-indigo-600 hover:underline dark:text-indigo-400">
-              {resetLink}
-            </a>
-          </div>
+        {sent ? (
+          <p className="rounded-lg bg-emerald-50 px-3 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+            If an account exists for that email address, a password reset link has been sent. Check your inbox.
+          </p>
+        ) : (
+          <p className="rounded-lg bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+            Email sending is not configured on this forum, so a reset link cannot be delivered automatically.
+            Please contact the site administrator to reset your password.
+          </p>
         )}
         <Link href="/login" className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
           Back to log in

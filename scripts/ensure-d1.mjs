@@ -12,9 +12,12 @@
  *  3. Patches `wrangler.jsonc` with the real `database_id` so the subsequent
  *     `vinext-cloudflare deploy` step succeeds.
  *
- * The script is intentionally non-fatal: if the environment is not
- * authenticated, or wrangler is unavailable, it prints a warning and exits 0
- * so the deploy can still report its own (clearer) error.
+ * Exit behaviour:
+ *  - Local interactive shells (no CLOUDFLARE_API_TOKEN): warnings + exit 0,
+ *    so a human can finish setup themselves.
+ *  - Automated deploy environments (CLOUDFLARE_API_TOKEN or CI set):
+ *    provisioning failures exit non-zero so the broken deploy stops loudly
+ *    instead of failing later with an opaque placeholder-id error.
  */
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -26,18 +29,30 @@ const cfgPath = path.join(root, "wrangler.jsonc");
 const PLACEHOLDER_ID = "00000000-0000-0000-0000-000000000000";
 
 const location = process.env.CF_D1_LOCATION ?? "weur";
+/** True when running inside an automated deploy pipeline. */
+const automated = Boolean(process.env.CI || process.env.CLOUDFLARE_API_TOKEN);
+
+function fail(message) {
+  if (automated) {
+    console.error(`[ensure-d1] ${message}`);
+    process.exit(1);
+  }
+  console.warn(`[ensure-d1] ${message}`);
+  process.exit(0);
+}
 
 function wranglerBin() {
   const name = process.platform === "win32" ? "wrangler.cmd" : "wrangler";
-  const local = path.join(root, "node_modules", ".bin", name);
-  return local;
+  return path.join(root, "node_modules", ".bin", name);
 }
 
 function run(args) {
+  // `shell` is required to spawn .cmd shims on Windows (Node >= 18.20).
   return spawnSync(wranglerBin(), args, {
     cwd: root,
     encoding: "utf8",
     env: process.env,
+    shell: process.platform === "win32",
   });
 }
 
@@ -97,12 +112,11 @@ async function main() {
   const listResult = run(["d1", "list", "--json"]);
   if (listResult.status !== 0) {
     const errText = (listResult.stderr || listResult.stdout || "").trim();
-    console.warn(`[ensure-d1] Could not list D1 databases: ${errText}`);
-    console.warn(
-      "[ensure-d1] Continuing without provisioning. Make sure you are authenticated " +
-        "(wrangler login / CLOUDFLARE_API_TOKEN) or create the D1 database manually."
+    fail(
+      `Could not list D1 databases (${errText}). Make sure the environment is ` +
+        "authenticated (CLOUDFLARE_API_TOKEN) and the token has D1 edit permission, " +
+        "or create the database manually and set database_id in wrangler.jsonc."
     );
-    process.exit(0);
   }
 
   let databases = [];
@@ -117,9 +131,9 @@ async function main() {
     console.log(`[ensure-d1] Database "${name}" does not exist; creating it...`);
     const createResult = run(["d1", "create", name, "--location", location]);
     if (createResult.status !== 0) {
-      console.warn(`[ensure-d1] Failed to create D1 database "${name}":`);
-      console.warn(String(createResult.stderr || createResult.stdout));
-      process.exit(0);
+      fail(
+        `Failed to create D1 database "${name}":\n${String(createResult.stderr || createResult.stdout)}`
+      );
     }
     // Re-list to fetch the new id.
     const relist = run(["d1", "list", "--json"]);
@@ -132,8 +146,7 @@ async function main() {
   }
 
   if (!found || !found.uuid) {
-    console.warn("[ensure-d1] Could not determine the database id after provisioning.");
-    process.exit(0);
+    fail("Could not determine the database id after provisioning.");
   }
 
   if (currentId !== found.uuid) {

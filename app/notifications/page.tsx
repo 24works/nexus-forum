@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { Bell, Reply, AtSign } from "lucide-react";
 import { currentUserRSC } from "@/lib/session-rsc";
 import { itemsPerPage } from "@/lib/settings";
-import { notificationsFor } from "@/lib/queries";
+import { notificationsFor, postPageInThread } from "@/lib/queries";
 import { NotificationRow } from "@/lib/types";
 import { Avatar, Card, Pagination, EmptyState, cn } from "@/components/ui";
 import { MarkAllReadButton } from "@/components/notifications-read-button";
@@ -57,7 +57,7 @@ export default async function NotificationsPage({
         <Card noPad>
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {data.items.map((n) => (
-              <NotificationItem key={n.id} n={n} />
+              <NotificationItem key={n.id} n={n} perPage={perPage} />
             ))}
           </ul>
         </Card>
@@ -68,11 +68,12 @@ export default async function NotificationsPage({
   );
 }
 
-function NotificationItem({ n }: { n: NotificationRow }) {
+async function NotificationItem({ n, perPage }: { n: NotificationRow; perPage: number }) {
   const actor = n.actor_username ?? "A deleted user";
   const isReply = n.type === "reply";
+  const postPage = n.post_id ? await postPageInThread(n.post_id, perPage) : null;
   const threadHref = n.thread_id
-    ? `/t/${n.thread_id}${n.post_id ? `?page=1#post-${n.post_id}` : ""}`
+    ? `/t/${n.thread_id}${n.post_id ? `?page=${postPage ?? 1}#post-${n.post_id}` : ""}`
     : null;
 
   return (

@@ -26,9 +26,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const target = await db.prepare("SELECT * FROM users WHERE id = ?").bind(targetId).first<PublicUser & { password_hash: string }>();
     if (!target) throw new AppError(404, "User not found.");
 
-    // Only admins may act on other admins.
-    if (target.role === "admin" && actor.role !== "admin") {
-      throw new AppError(403, "Only administrators can moderate other administrators.");
+    // Moderators may only act on ordinary members; only admins may act on
+    // moderators or other admins. Nobody acts on themselves via this route.
+    const rank: Record<string, number> = { member: 0, moderator: 1, admin: 2 };
+    if (targetId === actor.id) {
+      throw new AppError(400, "You cannot moderate your own account here.");
+    }
+    if (rank[target.role] >= 1 && actor.role !== "admin") {
+      throw new AppError(403, "Only administrators can moderate other staff members.");
     }
 
     if (action === "ban") {

@@ -19,7 +19,7 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
   if (!apiKey) return false;
 
   try {
-    await fetch("https://api.resend.com/emails", {
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -27,6 +27,11 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
       },
       body: JSON.stringify({ from, to: [payload.to], subject: payload.subject, text: payload.text, html: payload.html }),
     });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(`[email] provider rejected message (${res.status}):`, body.slice(0, 500));
+      return false;
+    }
     return true;
   } catch (err) {
     console.error("[email] failed to send:", err);

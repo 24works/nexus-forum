@@ -38,6 +38,7 @@ export default async function SearchPage({
       boardId: board?.id,
       page,
       perPage,
+      viewerRole: user?.role ?? null,
     });
   }
 
@@ -120,7 +121,10 @@ export default async function SearchPage({
 function SearchItem({ result }: { result: SearchResult }) {
   return (
     <li className="py-3">
-      <Link href={`/t/${result.threadId}${result.postId ? `?page=1#post-${result.postId}` : ""}`} className="group block">
+      <Link
+        href={`/t/${result.threadId}${result.postId ? `?page=${result.postPage ?? 1}#post-${result.postId}` : ""}`}
+        className="group block"
+      >
         <div className="flex items-center gap-1.5">
           <Badge color={result.type === "thread" ? "indigo" : "slate"}>
             {result.type === "thread" ? "Thread" : "Post"}

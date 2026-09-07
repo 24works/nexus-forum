@@ -26,17 +26,19 @@ export async function checkRateLimit(opts: RateLimitOptions): Promise<RateLimitR
   const db = getDb();
   const { windowMs, limit, bucket, subject } = opts;
   const nowMs = now();
-  const period = Math.floor(nowMs / windowMs);
+  // period_start stores the window start in epoch ms (not the window index),
+  // so cleanup can compare it against real timestamps.
+  const periodStart = Math.floor(nowMs / windowMs) * windowMs;
   const subjectHash = (await sha256Hex(`${bucket}:${subject}`)).slice(0, 32);
   const bucketKey = `${bucket}:${subjectHash}`;
 
   const found = await db
     .prepare("SELECT count FROM rate_limits WHERE bucket = ? AND period_start = ?")
-    .bind(bucketKey, period)
+    .bind(bucketKey, periodStart)
     .first<{ count: number }>();
 
   if (found && found.count >= limit) {
-    const nextPeriodStart = (period + 1) * windowMs;
+    const nextPeriodStart = periodStart + windowMs;
     const retryAfter = Math.max(1, Math.ceil((nextPeriodStart - nowMs) / 1000));
     return { allowed: false, retryAfter };
   }
@@ -46,7 +48,7 @@ export async function checkRateLimit(opts: RateLimitOptions): Promise<RateLimitR
       `INSERT INTO rate_limits (bucket, period_start, count) VALUES (?, ?, 1)
        ON CONFLICT(bucket, period_start) DO UPDATE SET count = count + 1`
     )
-    .bind(bucketKey, period)
+    .bind(bucketKey, periodStart)
     .run();
 
   // Best-effort cleanup of stale rows (~0.5% of requests).

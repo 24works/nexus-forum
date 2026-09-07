@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getDb, ensureSchema, now } from "@/lib/db";
 import { AppError, assertSameOrigin, jsonError, jsonOk, readJson } from "@/lib/errors";
-import { requireUser, getPepper, getUserById } from "@/lib/auth";
+import { requireUser, getPepper, getUserById, getCookie, SESSION_COOKIE } from "@/lib/auth";
 import { hashPassword, randomToken, sha256Hex, verifyPassword } from "@/lib/crypto";
 import { validateBio, validateSignature, validateEmail, validatePassword } from "@/lib/validation";
 import { sendEmail, emailConfigured, siteUrl } from "@/lib/email";
@@ -58,7 +58,6 @@ export async function PATCH(req: NextRequest) {
     }
 
     let email = user.email;
-    let debugVerificationLink: string | null = null;
 
     if (body.email !== undefined) {
       const newEmail = validateEmail(body.email);
@@ -66,19 +65,20 @@ export async function PATCH(req: NextRequest) {
         const taken = await db.prepare("SELECT id FROM users WHERE email = ? AND id != ?").bind(newEmail, user.id).first();
         if (taken) throw new AppError(409, "That email address is already in use.", "email");
         updates.push("email = ?");
-        updates.push("email_verified = 0");
         params.push(newEmail);
 
-        const nowMs = now();
-        const token = randomToken(32);
-        await db
-          .prepare(
-            "INSERT INTO email_tokens (token_hash, user_id, type, created_at, expires_at, used) VALUES (?, ?, 'verify_email', ?, ?, 0)"
-          )
-          .bind(await sha256Hex(token), user.id, nowMs, nowMs + 24 * 60 * 60 * 1000)
-          .run();
-        const url = `${siteUrl(req)}/verify-email?token=${token}`;
         if (emailConfigured()) {
+          // A verification token is created; the link goes out by email only.
+          updates.push("email_verified = 0");
+          const nowMs = now();
+          const token = randomToken(32);
+          await db
+            .prepare(
+              "INSERT INTO email_tokens (token_hash, user_id, type, created_at, expires_at, used) VALUES (?, ?, 'verify_email', ?, ?, 0)"
+            )
+            .bind(await sha256Hex(token), user.id, nowMs, nowMs + 24 * 60 * 60 * 1000)
+            .run();
+          const url = `${siteUrl(req)}/verify-email?token=${token}`;
           await sendEmail({
             to: newEmail,
             subject: "Verify your email address",
@@ -86,7 +86,9 @@ export async function PATCH(req: NextRequest) {
             html: `<p>Please verify your email address by clicking <a href="${url}">this link</a>.</p>`,
           });
         } else {
-          debugVerificationLink = url;
+          // No email provider configured: nothing to deliver, so the new
+          // address is trusted immediately instead of leaking a link.
+          updates.push("email_verified = 1");
         }
         email = newEmail;
       } else if (newEmail === null) {
@@ -117,8 +119,17 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (passwordChanged) {
-      // Invalidate other sessions.
-      await db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id).run();
+      // Invalidate every other session, keeping the current one alive.
+      const currentToken = getCookie(req, SESSION_COOKIE);
+      const currentHash = currentToken ? await sha256Hex(currentToken) : null;
+      if (currentHash) {
+        await db
+          .prepare("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?")
+          .bind(user.id, currentHash)
+          .run();
+      } else {
+        await db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(user.id).run();
+      }
     }
 
     const updated = await db.prepare("SELECT * FROM users WHERE id = ?").bind(user.id).first<UserRow>();
@@ -127,7 +138,6 @@ export async function PATCH(req: NextRequest) {
 
     return jsonOk({
       user: { ...pub, email: updated.email ?? "", email_verified: updated.email_verified ?? 0 },
-      debugVerificationLink,
     });
   } catch (err) {
     return jsonError(err);

@@ -41,6 +41,13 @@ export async function POST(req: NextRequest) {
       await db.prepare("UPDATE users SET email = ? WHERE id = ?").bind(email, user.id).run();
     }
 
+    // Without a configured email provider there is nothing to send through,
+    // so the authenticated user verifies their address directly.
+    if (!emailConfigured()) {
+      await db.prepare("UPDATE users SET email_verified = 1 WHERE id = ?").bind(user.id).run();
+      return jsonOk({ sent: false, verified: true });
+    }
+
     const nowMs = now();
     void (await db.prepare("DELETE FROM email_tokens WHERE user_id = ? AND type = 'verify_email'").bind(user.id).run());
     const token = randomToken(32);
@@ -52,20 +59,14 @@ export async function POST(req: NextRequest) {
       .run();
 
     const url = `${siteUrl(req)}/verify-email?token=${token}`;
-    let sent = false;
-    let debugVerificationLink: string | null = null;
-    if (emailConfigured()) {
-      sent = await sendEmail({
-        to: email,
-        subject: "Verify your email address",
-        text: `Please verify your email address by opening this link:\n${url}`,
-        html: `<p>Please verify your email address by clicking <a href="${url}">this link</a>.</p>`,
-      });
-    } else {
-      debugVerificationLink = url;
-    }
+    const sent = await sendEmail({
+      to: email,
+      subject: "Verify your email address",
+      text: `Please verify your email address by opening this link:\n${url}`,
+      html: `<p>Please verify your email address by clicking <a href="${url}">this link</a>.</p>`,
+    });
 
-    return jsonOk({ sent, debugVerificationLink });
+    return jsonOk({ sent });
   } catch (err) {
     return jsonError(err);
   }

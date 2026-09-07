@@ -26,7 +26,7 @@ export function RegisterForm() {
     setFieldError(null);
     setNotice(null);
     try {
-      const res = await api<{ debugVerificationLink?: string; verificationSent?: boolean }>("/api/auth/register", {
+      const res = await api<{ verificationSent?: boolean }>("/api/auth/register", {
         method: "POST",
         json: { username, password, confirmPassword, email, company },
       });
@@ -36,17 +36,7 @@ export function RegisterForm() {
         setBusy(false);
         return;
       }
-      if (res.debugVerificationLink && !res.verificationSent) {
-        setNotice(
-          `Account created! Since email sending is not configured, verify your email here: ${res.debugVerificationLink}`
-        );
-        setBusy(false);
-        setTimeout(() => {
-          router.push("/");
-          router.refresh();
-        }, 3000);
-        return;
-      }
+      // The registration response also signs the user in.
       router.push("/");
       router.refresh();
     } catch {

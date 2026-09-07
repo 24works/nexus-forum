@@ -140,16 +140,21 @@ export default async function ThreadPage({
             content_html: thread.content_html,
             is_deleted: 0,
             created_at: thread.created_at,
-            updated_at: null,
-            edit_count: 0,
+            updated_at: thread.updated_at,
+            edit_count: thread.updated_at && thread.updated_at > thread.created_at ? 1 : 0,
             edit_user_id: null,
             author_username: thread.author_username,
             author_role: opUser?.role,
+            author_created_at: opUser?.created_at,
+            author_status: opUser?.status,
+            thread_title: thread.title,
           }}
           threadId={threadId}
           currentUser={user}
           boardSlug={thread.board_slug ?? ""}
           number={1}
+          isOp
+          opTags={thread.tags}
         />
         {data.items.map((post, idx) => (
           <PostRow
@@ -165,10 +170,11 @@ export default async function ThreadPage({
 
       <Pagination page={data.page} totalPages={data.totalPages} buildHref={(p) => `/t/${threadId}?page=${p}`} />
 
-      {/* Reply form */}
+      {/* Reply form — remounts when a different quote is requested so the
+          quoted text fills the editor on client-side navigation. */}
       {user ? (
         canPost ? (
-          <ReplyForm threadId={threadId} locked={false} totalPages={data.totalPages} initialQuote={quoteText} />
+          <ReplyForm key={quoteText} threadId={threadId} locked={false} initialQuote={quoteText} />
         ) : (
           <Card className="text-center">
             <p className="text-sm text-slate-500 dark:text-slate-400">

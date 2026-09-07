@@ -76,14 +76,44 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await db.prepare("UPDATE posts SET is_deleted = 1 WHERE id = ?").bind(postId).run();
 
     const thread = await getThreadView(post.thread_id);
-    if (thread && thread.reply_count > 0) {
-      await db.prepare("UPDATE threads SET reply_count = reply_count - 1, updated_at = ? WHERE id = ?").bind(now(), post.thread_id).run();
-      if (thread.last_post_id === postId || thread.last_reply_at === null) {
-        await refreshBoardSummary(thread.board_id);
+    if (thread) {
+      // When the removed post was the thread's latest reply, recompute the
+      // denormalized last-reply fields from the newest surviving post.
+      if (thread.last_post_id === postId) {
+        const newest = await db
+          .prepare(
+            "SELECT id, user_id, created_at, u.username AS username FROM posts p LEFT JOIN users u ON u.id = p.user_id WHERE p.thread_id = ? AND p.is_deleted = 0 ORDER BY p.created_at DESC, p.id DESC LIMIT 1"
+          )
+          .bind(post.thread_id)
+          .first<{ id: number; user_id: number; created_at: number; username: string | null }>();
+        await db
+          .prepare(
+            `UPDATE threads SET reply_count = MAX(0, reply_count - 1), updated_at = ?,
+               last_reply_at = ?, last_reply_user_id = ?, last_reply_username = ?, last_post_id = ?
+             WHERE id = ?`
+          )
+          .bind(
+            now(),
+            newest?.created_at ?? null,
+            newest?.user_id ?? null,
+            newest?.username ?? null,
+            newest?.id ?? null,
+            post.thread_id
+          )
+          .run();
+      } else {
+        await db
+          .prepare("UPDATE threads SET reply_count = MAX(0, reply_count - 1), updated_at = ? WHERE id = ?")
+          .bind(now(), post.thread_id)
+          .run();
       }
+      await db
+        .prepare("UPDATE boards SET post_count = MAX(0, post_count - 1) WHERE id = ?")
+        .bind(thread.board_id)
+        .run();
+      await db.prepare("UPDATE users SET post_count = MAX(0, post_count - 1) WHERE id = ?").bind(post.user_id).run();
+      await refreshBoardSummary(thread.board_id);
     }
-    await db.prepare("UPDATE boards SET post_count = MAX(0, post_count - 1) WHERE id = ?").bind(thread?.board_id ?? -1).run();
-    await db.prepare("UPDATE users SET post_count = MAX(0, post_count - 1) WHERE id = ?").bind(post.user_id).run();
 
     await audit(user, "delete_post", "post", postId);
     return jsonOk({ postId });

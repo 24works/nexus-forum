@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { CalendarDays, MessageSquare, Pencil, FileText, Inbox } from "lucide-react";
 import { currentUserRSC } from "@/lib/session-rsc";
 import { itemsPerPage } from "@/lib/settings";
-import { publicUserByUsername, userThreads, userPosts } from "@/lib/queries";
+import { publicUserByUsername, userThreads, userPosts, postPageInThread } from "@/lib/queries";
 import { Avatar, Card, RoleBadge, Pagination, EmptyState, Stat } from "@/components/ui";
 import { ThreadRow } from "@/components/thread-row";
 import { PostContent } from "@/components/post-content";
@@ -39,6 +39,10 @@ export default async function UserProfilePage({
 
   const threads = tab === "threads" ? await userThreads(user.id, page, perPage) : null;
   const posts = tab === "posts" ? await userPosts(user.id, page, perPage) : null;
+  // Resolve the thread page of each post once, for deep links.
+  const postPages = posts
+    ? await Promise.all(posts.items.map((p) => postPageInThread(p.id, perPage)))
+    : null;
 
   const buildHref = (p: number) => `/u/${user.username}?tab=${tab}&page=${p}`;
 
@@ -159,10 +163,10 @@ export default async function UserProfilePage({
             </div>
           ) : (
             <ul className="divide-y divide-slate-100 px-4 sm:px-5 dark:divide-slate-800">
-              {posts.items.map((post) => (
+              {posts.items.map((post, idx) => (
                 <li key={post.id} className="py-3">
                   <Link
-                    href={`/t/${post.thread_id}?page=1#post-${post.id}`}
+                    href={`/t/${post.thread_id}?page=${postPages?.[idx] ?? 1}#post-${post.id}`}
                     className="group block"
                   >
                     <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">

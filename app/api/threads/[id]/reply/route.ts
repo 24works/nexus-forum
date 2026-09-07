@@ -3,7 +3,7 @@ import { getDb, ensureSchema, now } from "@/lib/db";
 import { AppError, assertSameOrigin, clientIp, jsonError, jsonOk, readJson } from "@/lib/errors";
 import { requireUser } from "@/lib/auth";
 import { validateContent, validateId } from "@/lib/validation";
-import { rateLimitEnabled } from "@/lib/settings";
+import { rateLimitEnabled, itemsPerPage } from "@/lib/settings";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { renderMarkdown } from "@/lib/markdown";
 import { boardVisibleTo, getThreadView } from "@/lib/queries";
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const rendered = renderMarkdown(content);
     const nowMs = now();
+    const perPage = itemsPerPage();
 
     const result = await db
       .prepare(
@@ -57,25 +58,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .run();
     const postId = Number(result.meta.last_row_id);
 
+    // The insert and the denormalized counter updates run as one atomic
+    // batch, so a failure cannot leave counts out of sync.
     await db
-      .prepare(
-        `UPDATE threads SET reply_count = reply_count + 1, updated_at = ?,
-           last_reply_at = ?, last_reply_user_id = ?, last_reply_username = ?, last_post_id = ?
-         WHERE id = ?`
-      )
-      .bind(nowMs, nowMs, user.id, user.username, postId, threadId)
-      .run();
-
-    await db
-      .prepare(
-        `UPDATE boards SET post_count = post_count + 1,
-           last_thread_id = ?, last_thread_title = ?, last_post_username = ?, last_post_created_at = ?
-         WHERE id = ?`
-      )
-      .bind(threadId, thread.title, user.username, nowMs, thread.board_id)
-      .run();
-
-    await db.prepare("UPDATE users SET post_count = post_count + 1 WHERE id = ?").bind(user.id).run();
+      .batch([
+        db
+          .prepare(
+            `UPDATE threads SET reply_count = reply_count + 1, updated_at = ?,
+               last_reply_at = ?, last_reply_user_id = ?, last_reply_username = ?, last_post_id = ?
+             WHERE id = ?`
+          )
+          .bind(nowMs, nowMs, user.id, user.username, postId, threadId),
+        db
+          .prepare(
+            `UPDATE boards SET post_count = post_count + 1,
+               last_thread_id = ?, last_thread_title = ?, last_post_username = ?, last_post_created_at = ?
+             WHERE id = ?`
+          )
+          .bind(threadId, thread.title, user.username, nowMs, thread.board_id),
+        db.prepare("UPDATE users SET post_count = post_count + 1 WHERE id = ?").bind(user.id),
+      ]);
 
     await notifyReply({
       threadOwnerId: thread.user_id,
@@ -91,10 +93,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       actorUsername: user.username,
     });
 
+    // Page the new reply landed on (reply_count already incremented above).
+    const newReplyCount = thread.reply_count + 1;
     return jsonOk(
       {
         postId,
-        lastPage: true,
+        page: Math.max(1, Math.ceil(newReplyCount / perPage)),
         snippet: rendered.plain.slice(0, 160),
       },
       { status: 201 }

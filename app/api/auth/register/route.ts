@@ -77,19 +77,37 @@ export async function POST(req: NextRequest) {
     if (isConfiguredAdmin) role = "admin";
     else if (bootstrapAdminEnabled() && userCount === 0) role = "admin";
 
-    const result = await db
-      .prepare(
-        `INSERT INTO users (username, username_lower, password_hash, email, email_verified, role, status, created_at, last_seen_at, bio, signature, theme, post_count, thread_count)
-         VALUES (?, ?, ?, ?, 0, ?, 'active', ?, ?, '', '', 'system', 0, 0)`
-      )
-      .bind(username, username.toLowerCase(), passwordHash, email, role, nowMs, nowMs)
-      .run();
+    // Without a configured email provider there is no way to deliver a
+    // verification message, so accounts with an email address are verified
+    // immediately. Links are never returned in HTTP responses.
+    const emailVerified = email && !emailConfigured() ? 1 : 0;
+
+    let result;
+    try {
+      result = await db
+        .prepare(
+          `INSERT INTO users (username, username_lower, password_hash, email, email_verified, role, status, created_at, last_seen_at, bio, signature, theme, post_count, thread_count)
+           VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, '', '', 'system', 0, 0)`
+        )
+        .bind(username, username.toLowerCase(), passwordHash, email, emailVerified, role, nowMs, nowMs)
+        .run();
+    } catch (err) {
+      // Two concurrent registrations of the same name/email hit the UNIQUE
+      // constraints; report them as friendly conflicts, not 500s.
+      const message = err instanceof Error ? err.message : String(err);
+      if (/UNIQUE constraint failed: users\.username_lower/i.test(message)) {
+        throw new AppError(409, "That username is already taken.", "username");
+      }
+      if (/UNIQUE constraint failed: users\.email/i.test(message)) {
+        throw new AppError(409, "An account with that email address already exists.", "email");
+      }
+      throw err;
+    }
     const userId = Number(result.meta.last_row_id);
 
     let verificationSent = false;
-    let debugVerificationLink: string | null = null;
 
-    if (email) {
+    if (email && emailConfigured()) {
       const token = randomToken(32);
       const tokenHash = await sha256Hex(token);
       await db
@@ -100,18 +118,12 @@ export async function POST(req: NextRequest) {
         .run();
 
       const url = `${siteUrl(req)}/verify-email?token=${token}`;
-      if (emailConfigured()) {
-        verificationSent = await sendEmail({
-          to: email,
-          subject: "Verify your email address",
-          text: `Welcome! Please verify your email address by opening this link:\n${url}\n\nIf you did not create this account, you can safely ignore this email.`,
-          html: `<p>Welcome!</p><p>Please verify your email address by clicking the link below:</p><p><a href="${url}">${url}</a></p>`,
-        });
-      } else {
-        // No email provider configured: surface the link only in this API
-        // so the flow stays fully usable out of the box.
-        debugVerificationLink = url;
-      }
+      verificationSent = await sendEmail({
+        to: email,
+        subject: "Verify your email address",
+        text: `Welcome! Please verify your email address by opening this link:\n${url}\n\nIf you did not create this account, you can safely ignore this email.`,
+        html: `<p>Welcome!</p><p>Please verify your email address by clicking the link below:</p><p><a href="${url}">${url}</a></p>`,
+      });
     }
 
     const user = await db
@@ -127,7 +139,6 @@ export async function POST(req: NextRequest) {
       user: toPublicUser(user),
       verificationSent,
       verificationRequired: false,
-      debugVerificationLink,
     });
     response.cookies.set(SESSION_COOKIE, sessionToken, sessionCookieOptions(req));
     return response;
