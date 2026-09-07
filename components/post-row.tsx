@@ -6,7 +6,8 @@ import { canModerate } from "@/lib/auth";
 import { Avatar, Badge, RoleBadge } from "@/components/ui";
 import { PostContent } from "@/components/post-content";
 import { PostActions } from "@/components/post-actions";
-import { formatDate, pluralize } from "@/lib/time";
+import { FormattedDate } from "@/components/time";
+import { pluralize } from "@/lib/time";
 
 export function PostRow({
   post,
@@ -46,7 +47,7 @@ export function PostRow({
           {isDeleted && <Badge color="rose">Removed</Badge>}
         </div>
         <div className="hidden text-center text-[11px] leading-5 text-slate-400 sm:block">
-          Joined {formatDate(post.created_at)} ·
+          Joined <FormattedDate ts={post.created_at} /> ·
           <br />
           {pluralize(post.author_post_count ?? 0, "post", "posts")}
         </div>
@@ -59,7 +60,7 @@ export function PostRow({
             <span>Post #{number}</span>
             <span>·</span>
             <a href={`#post-${post.id}`} className="hover:text-slate-600 dark:hover:text-slate-200">
-              {formatDate(post.created_at)}
+              <FormattedDate ts={post.created_at} />
             </a>
           </span>
           <div className="flex items-center gap-1">
@@ -83,7 +84,7 @@ export function PostRow({
             <PostContent html={post.content_html} />
             {post.edit_count > 0 && (
               <p className="mt-2 text-[11px] text-slate-400">
-                Last edited {post.updated_at ? formatDate(post.updated_at) : ""} ({post.edit_count}{" "}
+                Last edited {post.updated_at ? <FormattedDate ts={post.updated_at} /> : ""} ({post.edit_count}{" "}
                 {post.edit_count === 1 ? "edit" : "edits"})
               </p>
             )}

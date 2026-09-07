@@ -8,7 +8,7 @@ import { notificationsFor } from "@/lib/queries";
 import { NotificationRow } from "@/lib/types";
 import { Avatar, Card, Pagination, EmptyState, cn } from "@/components/ui";
 import { MarkAllReadButton } from "@/components/notifications-read-button";
-import { relativeTime } from "@/lib/time";
+import { RelativeTime } from "@/components/time";
 
 export const metadata: Metadata = { title: "Notifications" };
 
@@ -122,7 +122,7 @@ function NotificationItem({ n }: { n: NotificationRow }) {
         </p>
         <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
           {isReply ? <Reply className="size-3" /> : <AtSign className="size-3" />}
-          {relativeTime(n.created_at)}
+          <RelativeTime ts={n.created_at} />
         </p>
       </div>
     </li>

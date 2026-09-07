@@ -7,7 +7,7 @@ import { searchForum, SearchResult, listBoards, getBoardBySlugRow } from "@/lib/
 import { getDb } from "@/lib/db";
 import { SearchBox } from "@/components/search-box";
 import { Card, Badge, Pagination, EmptyState, Avatar } from "@/components/ui";
-import { relativeTime } from "@/lib/time";
+import { RelativeTime } from "@/components/time";
 
 export const metadata: Metadata = { title: "Search" };
 
@@ -125,9 +125,7 @@ function SearchItem({ result }: { result: SearchResult }) {
           <Badge color={result.type === "thread" ? "indigo" : "slate"}>
             {result.type === "thread" ? "Thread" : "Post"}
           </Badge>
-          <Link href={`/board/${result.boardSlug}`} className="text-xs text-slate-400 hover:underline">
-            {result.boardName}
-          </Link>
+          <span className="text-xs text-slate-400">{result.boardName}</span>
         </div>
         <p className="mt-1 font-medium text-slate-900 group-hover:text-indigo-600 dark:text-slate-100 dark:group-hover:text-indigo-400">
           {result.threadTitle}
@@ -143,7 +141,9 @@ function SearchItem({ result }: { result: SearchResult }) {
             <Avatar name={result.authorUsername ?? "?"} size={16} className="rounded-full" />
             {result.authorUsername}
           </span>
-          <span>{relativeTime(result.createdAt)}</span>
+          <span>
+            <RelativeTime ts={result.createdAt} />
+          </span>
           <span className="inline-flex items-center gap-1">
             <MessageSquare className="size-3.5" />
             {result.replyCount}

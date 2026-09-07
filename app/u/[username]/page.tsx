@@ -8,7 +8,7 @@ import { publicUserByUsername, userThreads, userPosts } from "@/lib/queries";
 import { Avatar, Card, RoleBadge, Pagination, EmptyState, Stat } from "@/components/ui";
 import { ThreadRow } from "@/components/thread-row";
 import { PostContent } from "@/components/post-content";
-import { formatDate, relativeTime } from "@/lib/time";
+import { FormattedDate, RelativeTime } from "@/components/time";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +84,7 @@ export default async function UserProfilePage({
           value={
             <span className="inline-flex items-center gap-1.5 text-sm">
               <CalendarDays className="size-3.5" />
-              {formatDate(user.created_at)}
+              <FormattedDate ts={user.created_at} />
             </span>
           }
         />
@@ -92,7 +92,7 @@ export default async function UserProfilePage({
         <Stat label="Threads" value={user.thread_count} />
         <Stat
           label="Last seen"
-          value={<span className="text-sm">{user.last_seen_at ? relativeTime(user.last_seen_at) : "—"}</span>}
+          value={<span className="text-sm">{user.last_seen_at ? <RelativeTime ts={user.last_seen_at} /> : "—"}</span>}
         />
       </div>
 
@@ -170,7 +170,7 @@ export default async function UserProfilePage({
                       <span className="font-medium text-slate-500 group-hover:text-indigo-600 dark:text-slate-400 dark:group-hover:text-indigo-400">
                         {post.thread_title}
                       </span>
-                      <span>· {relativeTime(post.created_at)}</span>
+                      <span>· <RelativeTime ts={post.created_at} /></span>
                     </div>
                     <div className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
                       <PostContent html={post.content_html} />

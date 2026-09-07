@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { MessageSquare, FileText, Album } from "lucide-react";
-import { relativeTime, pluralize } from "@/lib/time";
+import { pluralize } from "@/lib/time";
 import { BoardRow } from "@/lib/types";
 import { Card } from "@/components/ui";
+import { RelativeTime } from "@/components/time";
 
 export function BoardCard({ board }: { board: BoardRow }) {
   return (
@@ -39,7 +40,9 @@ export function BoardCard({ board }: { board: BoardRow }) {
               <span className="line-clamp-1 font-medium text-slate-700 group-hover:text-indigo-600 dark:text-slate-200 dark:group-hover:text-indigo-400">
                 {board.last_thread_title}
               </span>
-              <span className="shrink-0 text-slate-400">{relativeTime(board.last_post_created_at)}</span>
+              <span className="shrink-0 text-slate-400">
+                <RelativeTime ts={board.last_post_created_at} />
+              </span>
             </div>
             <div className="mt-0.5 text-[11px] text-slate-400">Latest by {board.last_post_username ?? "—"}</div>
           </div>
