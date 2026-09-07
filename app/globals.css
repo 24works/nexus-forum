@@ -1,17 +1,205 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
 :root {
   color-scheme: light;
+  --md-border: #e2e8f0;
+  --md-border-strong: #cbd5e1;
+  --md-code-bg: #f1f5f9;
+  --md-quote-bg: #f8fafc;
+  --md-muted: #64748b;
+  --md-link: #4f46e5;
   background: #f8fafc;
-  color: #111827;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #0f172a;
+}
+
+.dark {
+  color-scheme: dark;
+  --md-border: #334155;
+  --md-border-strong: #475569;
+  --md-code-bg: #1e293b;
+  --md-quote-bg: #0f172a;
+  --md-muted: #94a3b8;
+  --md-link: #818cf8;
+  background: #020617;
+  color: #e2e8f0;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
+  background-color: var(--color-slate-50);
+}
+
+.dark body {
+  background-color: #020617;
 }
 
 a {
   color: inherit;
+  text-decoration: none;
+}
+
+/* ------------------------------- Markdown ------------------------------- */
+
+.md-content {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.md-content > *:first-child {
+  margin-top: 0;
+}
+.md-content > *:last-child {
+  margin-bottom: 0;
+}
+
+.md-content h1,
+.md-content h2,
+.md-content h3,
+.md-content h4 {
+  font-weight: 650;
+  line-height: 1.3;
+  margin: 1.4em 0 0.6em;
+}
+.md-content h1 {
+  font-size: 1.4rem;
+}
+.md-content h2 {
+  font-size: 1.25rem;
+}
+.md-content h3 {
+  font-size: 1.1rem;
+}
+.md-content h4 {
+  font-size: 1rem;
+}
+
+.md-content p {
+  margin: 0.7em 0;
+}
+
+.md-content ul,
+.md-content ol {
+  margin: 0.7em 0;
+  padding-left: 1.5em;
+}
+.md-content ul {
+  list-style: disc;
+}
+.md-content ol {
+  list-style: decimal;
+}
+.md-content li {
+  margin: 0.25em 0;
+}
+
+.md-content blockquote {
+  margin: 0.9em 0;
+  padding: 0.5em 1em;
+  border-left: 3px solid var(--md-border-strong);
+  background: var(--md-quote-bg);
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: var(--md-muted);
+}
+.md-content blockquote p {
+  margin: 0.3em 0;
+}
+
+.md-content pre {
+  margin: 0.9em 0;
+  padding: 0.9em 1em;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.dark .md-content pre {
+  background: #0b1120;
+  border: 1px solid var(--md-border);
+}
+.md-content code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--md-code-bg);
+  border-radius: 0.375rem;
+  padding: 0.15em 0.4em;
+}
+.md-content pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.md-content a {
+  color: var(--md-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md-content a:hover {
+  opacity: 0.8;
+}
+.md-content p a.mention {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.md-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  margin: 0.7em 0;
+}
+.md-content hr {
+  border: none;
+  border-top: 1px solid var(--md-border);
+  margin: 1.4em 0;
+}
+.md-content del {
+  opacity: 0.7;
+}
+.md-content mark {
+  background: #fef08a;
+  color: #1e293b;
+  border-radius: 0.25rem;
+  padding: 0 0.15em;
+}
+
+.md-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.9em 0;
+  font-size: 0.875rem;
+}
+.md-content th,
+.md-content td {
+  border: 1px solid var(--md-border);
+  padding: 0.45em 0.7em;
+  text-align: left;
+}
+.md-content th {
+  background: var(--md-code-bg);
+  font-weight: 600;
+}
+
+/* ------------------------------- Scrollbar ------------------------------- */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--md-border-strong) transparent;
 }

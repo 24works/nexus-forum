@@ -5,6 +5,7 @@
   "packageManager": "npm",
   "dependencies": {
     "@vinext/cloudflare": "latest",
+    "lucide-react": "^1.42.0",
     "react": "latest",
     "react-dom": "latest",
     "react-server-dom-webpack": "latest",
@@ -28,8 +29,10 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
-    "deploy": "vinext-cloudflare deploy --config dist/server/wrangler.json",
+    "deploy": "node scripts/ensure-d1.mjs && vinext-cloudflare deploy --config dist/server/wrangler.json",
+    "deploy:skip-d1": "vinext-cloudflare deploy --config dist/server/wrangler.json",
     "preview": "npm run build && npm run start --",
+    "typecheck": "tsc --noEmit",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv ./worker-configuration.d.ts"
   }
 }
