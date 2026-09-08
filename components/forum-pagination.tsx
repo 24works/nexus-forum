@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -33,7 +34,15 @@ export function ForumPagination({
       <PaginationContent>
         <PaginationItem>
           {page <= 1 ? (
-            <PaginationPrevious href={buildHref(1)} aria-disabled className="pointer-events-none opacity-50" />
+            // A plain span: a disabled <a href> would still be focusable and
+            // keyboard-activatable.
+            <span
+              aria-disabled="true"
+              className="inline-flex items-center gap-1 px-1.5 py-1 text-sm opacity-50"
+            >
+              <ChevronLeftIcon data-icon="inline-start" />
+              <span className="hidden sm:block">Previous</span>
+            </span>
           ) : (
             <PaginationPrevious href={buildHref(page - 1)} />
           )}
@@ -53,7 +62,13 @@ export function ForumPagination({
         )}
         <PaginationItem>
           {page >= totalPages ? (
-            <PaginationNext href={buildHref(totalPages)} aria-disabled className="pointer-events-none opacity-50" />
+            <span
+              aria-disabled="true"
+              className="inline-flex items-center gap-1 px-1.5 py-1 text-sm opacity-50"
+            >
+              <span className="hidden sm:block">Next</span>
+              <ChevronRightIcon data-icon="inline-end" />
+            </span>
           ) : (
             <PaginationNext href={buildHref(page + 1)} />
           )}

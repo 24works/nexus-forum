@@ -34,7 +34,6 @@ type SettingsApiResponse = {
   ok: boolean;
   error?: string;
   field?: string;
-  debugVerificationLink?: string | null;
 };
 
 export function SettingsForm({
@@ -55,7 +54,6 @@ export function SettingsForm({
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [verificationLink, setVerificationLink] = useState<string | null>(null);
 
   const fieldInvalid = (name: string) => (fieldError === name ? true : undefined);
 
@@ -65,7 +63,6 @@ export function SettingsForm({
     setError(null);
     setFieldError(null);
     setSuccess(null);
-    setVerificationLink(null);
     try {
       const res = await api<SettingsApiResponse>("/api/me", {
         method: "PATCH",
@@ -86,7 +83,6 @@ export function SettingsForm({
         return;
       }
       setSuccess("Your settings have been updated.");
-      setVerificationLink(res.debugVerificationLink ?? null);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -94,6 +90,21 @@ export function SettingsForm({
     } catch {
       setError("A network error occurred.");
       setBusy(false);
+    }
+  };
+
+  // Keeps the cookie-backed theme in sync with the saved preference, so the
+  // Select takes effect immediately (the cookie wins in resolveTheme()).
+  const applyThemePreference = (pref: "system" | "light" | "dark") => {
+    if (pref === "system") {
+      document.cookie = "theme=; path=/; max-age=0; samesite=lax";
+      document.documentElement.classList.toggle(
+        "dark",
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+      );
+    } else {
+      document.cookie = `theme=${pref}; path=/; max-age=31536000; samesite=lax`;
+      document.documentElement.classList.toggle("dark", pref === "dark");
     }
   };
 
@@ -130,7 +141,14 @@ export function SettingsForm({
 
         <Field data-invalid={fieldInvalid("theme")}>
           <FieldLabel htmlFor="settings-theme">Theme</FieldLabel>
-          <Select value={theme} onValueChange={(v) => setTheme(v as "system" | "light" | "dark")}>
+          <Select
+            value={theme}
+            onValueChange={(v) => {
+              const next = v as "system" | "light" | "dark";
+              setTheme(next);
+              applyThemePreference(next);
+            }}
+          >
             <SelectTrigger id="settings-theme" aria-invalid={fieldInvalid("theme")}>
               <SelectValue />
             </SelectTrigger>
@@ -222,17 +240,6 @@ export function SettingsForm({
           <Alert>
             <CheckIcon />
             <AlertTitle>{success}</AlertTitle>
-          </Alert>
-        )}
-
-        {verificationLink && (
-          <Alert>
-            <AlertTitle>Email verification link (email sending not configured)</AlertTitle>
-            <AlertDescription>
-              <a href={verificationLink} className="block break-all font-mono text-xs underline underline-offset-2">
-                {verificationLink}
-              </a>
-            </AlertDescription>
           </Alert>
         )}
 

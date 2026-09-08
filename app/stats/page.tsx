@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ActivityIcon, FileTextIcon, MessageSquareIcon, SparklesIcon, TrophyIcon, UsersIcon } from "lucide-react";
 import { siteStats, topPosters, latestMembers, activeThreads } from "@/lib/queries";
+import { currentUserRSC } from "@/lib/session-rsc";
 import { Stat } from "@/components/stat";
 import { SectionHeading } from "@/components/section-heading";
 import { EmptyState } from "@/components/empty-state";
@@ -14,11 +15,12 @@ export const metadata: Metadata = { title: "Stats" };
 export const dynamic = "force-dynamic";
 
 export default async function StatsPage() {
+  const user = await currentUserRSC();
   const [stats, posters, members, active] = await Promise.all([
     siteStats(),
     topPosters(8),
     latestMembers(8),
-    activeThreads(5),
+    activeThreads(5, user?.role ?? null),
   ]);
 
   return (

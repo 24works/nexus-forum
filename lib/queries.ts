@@ -163,13 +163,20 @@ export async function threadPosts(
   return { items: results as unknown as PostView[], total, page: safePage, perPage, totalPages };
 }
 
-export async function latestThreads(limit = 10): Promise<ThreadView[]> {
+/** SQL clause restricting thread lists to boards the viewer role can see. */
+function visibleBoardClause(role: string | undefined | null): string {
+  if (role === "admin") return "AND b.is_enabled = 1";
+  if (role === "moderator") return "AND b.is_enabled = 1 AND b.role IN ('everyone', 'moderator')";
+  return "AND b.is_enabled = 1 AND b.role = 'everyone'";
+}
+
+export async function latestThreads(limit = 10, viewerRole?: string | null): Promise<ThreadView[]> {
   await ensureSchema();
   const db = getDb();
   const { results } = await db
     .prepare(`
       ${THREAD_SELECT}
-      WHERE t.is_deleted = 0 AND b.is_enabled = 1
+      WHERE t.is_deleted = 0 ${visibleBoardClause(viewerRole)}
       ORDER BY COALESCE(t.last_reply_at, t.created_at) DESC
       LIMIT ?
     `)
@@ -558,12 +565,12 @@ export async function latestMembers(limit = 8): Promise<{ id: number; username: 
   return results as { id: number; username: string; created_at: number }[];
 }
 
-export async function activeThreads(limit = 8): Promise<ThreadView[]> {
+export async function activeThreads(limit = 8, viewerRole?: string | null): Promise<ThreadView[]> {
   await ensureSchema();
   const { results } = await getDb()
     .prepare(`
       ${THREAD_SELECT}
-      WHERE t.is_deleted = 0 AND b.is_enabled = 1
+      WHERE t.is_deleted = 0 ${visibleBoardClause(viewerRole)}
       ORDER BY t.views * 1 + t.reply_count * 5 DESC, COALESCE(t.last_reply_at, t.created_at) DESC
       LIMIT ?
     `)

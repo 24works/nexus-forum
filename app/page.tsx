@@ -18,7 +18,11 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const user = await currentUserRSC();
-  const [boards, threads, stats] = await Promise.all([listBoards(user), latestThreads(8), siteStats()]);
+  const [boards, threads, stats] = await Promise.all([
+    listBoards(user),
+    latestThreads(8, user?.role ?? null),
+    siteStats(),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">

@@ -291,6 +291,7 @@ export function BoardRowActions({
     try {
       const res = await api(`/api/admin/boards/${boardId}`, { method: "PATCH", json });
       if (res.ok) {
+        setBusy(false);
         router.refresh();
         return true;
       }
