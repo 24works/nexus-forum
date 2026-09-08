@@ -8,7 +8,6 @@
  */
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -45,7 +44,6 @@ export function ThreadOpActions({
   initialContent: string;
   initialTags: string;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(initialContent);
@@ -65,8 +63,7 @@ export function ThreadOpActions({
         json: { action: "edit", title, content, tags: tags.split(",").map((t) => t.trim()).filter(Boolean) },
       });
       if (res.ok) {
-        setEditing(false);
-        router.refresh();
+        window.location.reload();
       } else {
         setError(res.error ?? "Failed to save changes.");
       }
@@ -85,8 +82,7 @@ export function ThreadOpActions({
         json: { action: "delete" },
       });
       if (res.ok) {
-        router.push(`/board/${boardSlug}`);
-        router.refresh();
+        window.location.assign(`/board/${boardSlug}`);
       } else {
         setError(res.error ?? "Failed to delete thread.");
         setBusy(false);

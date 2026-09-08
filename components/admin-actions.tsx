@@ -3,11 +3,12 @@
 /**
  * Client-side actions for the /admin dashboard: report resolution, user
  * moderation and board management. The dashboard page itself is a server
- * component; these islands call the admin APIs and refresh in place.
+ * component; these islands call the admin APIs and then hard-reload the
+ * page — vinext's client router serves cached RSC payloads for
+ * router.refresh(), which would leave stale rows on screen.
  */
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckIcon, PlusIcon, Undo2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,6 @@ import { api } from "@/lib/api-client";
 // ---------------------------------------------------------------------------
 
 export function ReportActions({ reportId, status }: { reportId: number; status: string }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
 
   if (status !== "open") return null;
@@ -52,7 +52,7 @@ export function ReportActions({ reportId, status }: { reportId: number; status: 
         method: "PATCH",
         json: { action },
       });
-      if (res.ok) router.refresh();
+      if (res.ok) window.location.reload();
       else toast.error(res.error ?? "Action failed.");
     } catch {
       toast.error("A network error occurred.");
@@ -92,7 +92,6 @@ export function UserActions({
   viewerRole: "admin" | "moderator";
   isSelf: boolean;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [banReason, setBanReason] = useState("");
 
@@ -105,7 +104,7 @@ export function UserActions({
     setBusy(true);
     try {
       const res = await api(`/api/admin/users/${userId}`, { method: "PATCH", json });
-      if (res.ok) router.refresh();
+      if (res.ok) window.location.reload();
       else toast.error(res.error ?? "Action failed.");
     } catch {
       toast.error("A network error occurred.");
@@ -186,7 +185,6 @@ export function UserActions({
 // ---------------------------------------------------------------------------
 
 export function BoardCreateForm() {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -203,10 +201,7 @@ export function BoardCreateForm() {
         json: { name, slug, description, role: "everyone", position: 99 },
       });
       if (res.ok) {
-        setName("");
-        setSlug("");
-        setDescription("");
-        router.refresh();
+        window.location.reload();
       } else {
         setError(res.error ?? "Could not create the category.");
       }
@@ -279,7 +274,6 @@ export function BoardRowActions({
   name: string;
   description: string;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -291,8 +285,7 @@ export function BoardRowActions({
     try {
       const res = await api(`/api/admin/boards/${boardId}`, { method: "PATCH", json });
       if (res.ok) {
-        setBusy(false);
-        router.refresh();
+        window.location.reload();
         return true;
       }
       setError(res.error ?? "Update failed.");

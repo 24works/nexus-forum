@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { FolderInputIcon, LockIcon, MegaphoneIcon, PinIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -49,7 +48,6 @@ export function ThreadModActions({
   isAnnouncement: boolean;
   isDeleted: boolean;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [targetBoard, setTargetBoard] = useState(String(boardId));
 
@@ -62,10 +60,10 @@ export function ThreadModActions({
       });
       if (res.ok) {
         if (body.action === "delete") {
-          router.push("/");
+          window.location.assign("/");
           return;
         }
-        router.refresh();
+        window.location.reload();
       } else {
         toast.error(res.error ?? "Action failed.");
       }

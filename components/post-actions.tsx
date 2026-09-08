@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckIcon, FlagIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -30,7 +29,6 @@ interface PostActionsProps {
 }
 
 export function PostActions({ postId, isOwner, isModerator, initialContent }: PostActionsProps) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(initialContent);
   const [reporting, setReporting] = useState(false);
@@ -44,7 +42,7 @@ export function PostActions({ postId, isOwner, isModerator, initialContent }: Po
     try {
       const res = await api(`/api/posts/${postId}`, { method: "DELETE" });
       if (res.ok) {
-        router.refresh();
+        window.location.reload();
       } else {
         setError(res.error ?? "Failed to delete post.");
         setBusy(false);
@@ -64,8 +62,7 @@ export function PostActions({ postId, isOwner, isModerator, initialContent }: Po
         json: { content },
       });
       if (res.ok) {
-        setEditing(false);
-        router.refresh();
+        window.location.reload();
       } else {
         setError(res.error ?? "Failed to save edits.");
       }
@@ -84,9 +81,7 @@ export function PostActions({ postId, isOwner, isModerator, initialContent }: Po
         json: { reason },
       });
       if (res.ok) {
-        setReporting(false);
-        setReason("");
-        router.refresh();
+        window.location.reload();
       } else {
         setError(res.error ?? "Failed to submit report.");
       }

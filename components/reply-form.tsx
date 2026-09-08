@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { EyeIcon, PencilIcon, SendIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +20,6 @@ export function ReplyForm({
   initialQuote?: string;
   locked: boolean;
 }) {
-  const router = useRouter();
   const [content, setContent] = useState(initialQuote ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -44,11 +42,10 @@ export function ReplyForm({
         setBusy(false);
         return;
       }
-      setContent("");
-      setBusy(false);
-      // The API reports the page the new reply landed on.
-      router.push(`/t/${threadId}?page=${res.page ?? 1}`);
-      router.refresh();
+      // The API reports the page the new reply landed on. Hard navigation is
+      // required: vinext's client router caches RSC payloads, so router.push
+      // can render a stale thread that is missing the new reply.
+      window.location.assign(`/t/${threadId}?page=${res.page ?? 1}`);
     } catch {
       setError("A network error occurred.");
       setBusy(false);

@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import { EyeIcon, PencilIcon, SendIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -27,7 +26,6 @@ export interface BoardChoice {
 }
 
 export function ThreadCreateForm({ boards, initialBoard }: { boards: BoardChoice[]; initialBoard?: number }) {
-  const router = useRouter();
   const [boardId, setBoardId] = useState(
     String(initialBoard && boards.some((b) => b.id === initialBoard) ? initialBoard : boards[0]?.id ?? 0)
   );
@@ -61,8 +59,9 @@ export function ThreadCreateForm({ boards, initialBoard }: { boards: BoardChoice
         setBusy(false);
         return;
       }
-      router.push(res.url ?? `/t/${res.threadId}`);
-      router.refresh();
+      // Hard navigation so the newly created thread is never served from the
+      // client router's RSC cache.
+      window.location.assign(res.url ?? `/t/${res.threadId}`);
     } catch {
       setError("A network error occurred.");
       setBusy(false);
