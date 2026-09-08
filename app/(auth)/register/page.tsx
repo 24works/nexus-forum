@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/auth/register-form";
 import { allowRegistration } from "@/lib/settings";
+import { currentUserRSC } from "@/lib/session-rsc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Create account" };
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  // Signed-in visitors have no business on the registration form.
+  if (await currentUserRSC()) redirect("/");
+
   if (!allowRegistration()) {
     return (
       <Card>

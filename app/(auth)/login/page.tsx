@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/auth/login-form";
+import { currentUserRSC } from "@/lib/session-rsc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Log in" };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  // Signed-in visitors have no business on the login form.
+  if (await currentUserRSC()) redirect("/");
+
   return (
     <Card>
       <CardHeader>
