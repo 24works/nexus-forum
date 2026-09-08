@@ -1,14 +1,16 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { UserPlus } from "lucide-react";
-import { Button, Input } from "@/components/ui";
+import { UserPlusIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api-client";
 
 export function RegisterForm() {
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +20,8 @@ export function RegisterForm() {
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const fieldInvalid = (name: string) => (fieldError === name ? true : undefined);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -36,9 +40,9 @@ export function RegisterForm() {
         setBusy(false);
         return;
       }
-      // The registration response also signs the user in.
-      router.push("/");
-      router.refresh();
+      // The registration response also signs the user in; a hard navigation
+      // makes the fresh session cookie visible to the server-rendered header.
+      window.location.assign("/");
     } catch {
       setError("A network error occurred.");
       setBusy(false);
@@ -46,7 +50,7 @@ export function RegisterForm() {
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
+    <form onSubmit={submit}>
       <input
         type="text"
         name="company"
@@ -57,69 +61,89 @@ export function RegisterForm() {
         autoComplete="off"
         aria-hidden="true"
       />
-      <Input
-        label="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        autoComplete="username"
-        required
-        minLength={3}
-        maxLength={20}
-        autoFocus
-        error={fieldError === "username" ? error ?? undefined : undefined}
-        placeholder="3-20 characters (letters, numbers, _)"
-      />
-      <Input
-        label="Email (optional)"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        autoComplete="email"
-        error={fieldError === "email" ? error ?? undefined : undefined}
-      />
-      <Input
-        label="Password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        autoComplete="new-password"
-        required
-        minLength={8}
-        maxLength={128}
-        error={fieldError === "password" ? error ?? undefined : undefined}
-        placeholder="At least 8 characters, letters + numbers"
-      />
-      <Input
-        label="Confirm password"
-        type="password"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        autoComplete="new-password"
-        required
-        minLength={8}
-        error={fieldError === "confirmPassword" ? error ?? undefined : undefined}
-      />
+      <FieldGroup>
+        <Field data-invalid={fieldInvalid("username")}>
+          <FieldLabel htmlFor="register-username">Username</FieldLabel>
+          <Input
+            id="register-username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            required
+            minLength={3}
+            maxLength={20}
+            autoFocus
+            placeholder="3-20 characters (letters, numbers, _)"
+            aria-invalid={fieldInvalid("username")}
+          />
+          {fieldError === "username" && error && <FieldDescription>{error}</FieldDescription>}
+        </Field>
+        <Field data-invalid={fieldInvalid("email")}>
+          <FieldLabel htmlFor="register-email">Email (optional)</FieldLabel>
+          <Input
+            id="register-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            aria-invalid={fieldInvalid("email")}
+          />
+          {fieldError === "email" && error && <FieldDescription>{error}</FieldDescription>}
+        </Field>
+        <Field data-invalid={fieldInvalid("password")}>
+          <FieldLabel htmlFor="register-password">Password</FieldLabel>
+          <Input
+            id="register-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            required
+            minLength={8}
+            maxLength={128}
+            placeholder="At least 8 characters, letters + numbers"
+            aria-invalid={fieldInvalid("password")}
+          />
+          {fieldError === "password" && error && <FieldDescription>{error}</FieldDescription>}
+        </Field>
+        <Field data-invalid={fieldInvalid("confirmPassword")}>
+          <FieldLabel htmlFor="register-confirm">Confirm password</FieldLabel>
+          <Input
+            id="register-confirm"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            required
+            minLength={8}
+            aria-invalid={fieldInvalid("confirmPassword")}
+          />
+          {fieldError === "confirmPassword" && error && <FieldDescription>{error}</FieldDescription>}
+        </Field>
 
-      {fieldError === "confirmPassword" || fieldError === "password" || fieldError === "username" || fieldError === "email" ? null : error ? (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</p>
-      ) : null}
+        {error && !fieldError && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      {notice && (
-        <p className="break-all rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-          {notice}
+        {notice && (
+          <Alert>
+            <AlertDescription>{notice}</AlertDescription>
+          </Alert>
+        )}
+
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <Spinner data-icon="inline-start" /> : <UserPlusIcon data-icon="inline-start" />}
+          {busy ? "Creating account…" : "Create account"}
+        </Button>
+        <p className="text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium underline underline-offset-4 hover:no-underline">
+            Log in
+          </Link>
         </p>
-      )}
-
-      <Button type="submit" disabled={busy} className="w-full">
-        <UserPlus className="size-4" />
-        {busy ? "Creating account…" : "Create account"}
-      </Button>
-      <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-        Already have an account?{" "}
-        <Link href="/login" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-          Log in
-        </Link>
-      </p>
+      </FieldGroup>
     </form>
   );
 }

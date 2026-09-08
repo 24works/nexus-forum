@@ -2,8 +2,12 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { KeyRound } from "lucide-react";
-import { Button, Input } from "@/components/ui";
+import { KeyRoundIcon } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api-client";
 
 export function ForgotPasswordForm() {
@@ -40,39 +44,52 @@ export function ForgotPasswordForm() {
     return (
       <div className="flex flex-col gap-3">
         {sent ? (
-          <p className="rounded-lg bg-emerald-50 px-3 py-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-            If an account exists for that email address, a password reset link has been sent. Check your inbox.
-          </p>
+          <Alert>
+            <AlertTitle>Check your inbox</AlertTitle>
+            <AlertDescription>
+              If an account exists for that email address, a password reset link has been sent.
+            </AlertDescription>
+          </Alert>
         ) : (
-          <p className="rounded-lg bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-            Email sending is not configured on this forum, so a reset link cannot be delivered automatically.
-            Please contact the site administrator to reset your password.
-          </p>
+          <Alert>
+            <AlertTitle>Email sending is not configured</AlertTitle>
+            <AlertDescription>
+              A reset link cannot be delivered automatically. Please contact the site administrator to reset your
+              password.
+            </AlertDescription>
+          </Alert>
         )}
-        <Link href="/login" className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-          Back to log in
-        </Link>
+        <Button asChild variant="ghost" size="sm" className="self-start">
+          <Link href="/login">Back to log in</Link>
+        </Button>
       </div>
     );
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <Input
-        label="Email address"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        autoFocus
-      />
-      {error && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</p>
-      )}
-      <Button type="submit" disabled={busy} className="w-full">
-        <KeyRound className="size-4" />
-        {busy ? "Sending…" : "Send reset link"}
-      </Button>
+    <form onSubmit={submit}>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="forgot-email">Email address</FieldLabel>
+          <Input
+            id="forgot-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+          />
+        </Field>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <Spinner data-icon="inline-start" /> : <KeyRoundIcon data-icon="inline-start" />}
+          {busy ? "Sending…" : "Send reset link"}
+        </Button>
+      </FieldGroup>
     </form>
   );
 }

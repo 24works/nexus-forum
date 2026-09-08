@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Bell, Reply, AtSign } from "lucide-react";
+import { AtSignIcon, BellIcon, ReplyIcon } from "lucide-react";
 import { currentUserRSC } from "@/lib/session-rsc";
 import { itemsPerPage } from "@/lib/settings";
 import { notificationsFor, postPageInThread } from "@/lib/queries";
 import { NotificationRow } from "@/lib/types";
-import { Avatar, Card, Pagination, EmptyState, cn } from "@/components/ui";
+import { ForumPagination } from "@/components/forum-pagination";
+import { EmptyState } from "@/components/empty-state";
+import { UserAvatar } from "@/components/user-avatar";
 import { MarkAllReadButton } from "@/components/notifications-read-button";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import { RelativeTime } from "@/components/time";
 
 export const metadata: Metadata = { title: "Notifications" };
@@ -34,36 +39,39 @@ export default async function NotificationsPage({
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
-            <Bell className="size-5" />
+          <span className="flex size-10 items-center justify-center rounded-xl bg-muted text-foreground">
+            <BellIcon className="size-5" />
           </span>
           <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Notifications</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Replies to your threads and mentions.
-            </p>
+            <h1 className="text-xl font-bold tracking-tight">Notifications</h1>
+            <p className="text-sm text-muted-foreground">Replies to your threads and mentions.</p>
           </div>
         </div>
         {data.items.length > 0 && hasUnread && <MarkAllReadButton />}
       </div>
 
       {data.items.length === 0 ? (
-        <EmptyState
-          title="No notifications yet"
-          description="When someone replies to your thread or mentions you, it will show up here."
-          icon={<Bell className="size-8" />}
-        />
+        <Card className="py-10">
+          <EmptyState
+            title="No notifications yet"
+            description="When someone replies to your thread or mentions you, it will show up here."
+            icon={<BellIcon />}
+          />
+        </Card>
       ) : (
-        <Card noPad>
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {data.items.map((n) => (
-              <NotificationItem key={n.id} n={n} perPage={perPage} />
+        <Card className="py-0">
+          <ul>
+            {data.items.map((n, idx) => (
+              <li key={n.id}>
+                {idx > 0 && <Separator />}
+                <NotificationItem n={n} perPage={perPage} />
+              </li>
             ))}
           </ul>
         </Card>
       )}
 
-      <Pagination page={data.page} totalPages={data.totalPages} buildHref={buildHref} />
+      <ForumPagination page={data.page} totalPages={data.totalPages} buildHref={buildHref} />
     </div>
   );
 }
@@ -77,55 +85,44 @@ async function NotificationItem({ n, perPage }: { n: NotificationRow; perPage: n
     : null;
 
   return (
-    <li className="flex items-start gap-3 px-4 py-3 sm:px-5">
+    <div className="flex items-start gap-3 p-4">
       <span
         className={cn(
           "mt-1.5 size-2 shrink-0 rounded-full",
-          n.read === 1 ? "bg-slate-300 dark:bg-slate-700" : "bg-indigo-500"
+          n.read === 1 ? "bg-muted-foreground/30" : "bg-primary"
         )}
         aria-label={n.read === 1 ? "Read" : "Unread"}
       />
-      <Avatar name={actor} size={36} className="rounded-full" />
+      <UserAvatar name={actor} />
       <div className="min-w-0 flex-1">
-        <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+        <p className="text-sm leading-relaxed text-muted-foreground">
           {n.actor_username ? (
             <Link
               href={`/u/${actor}`}
-              className="font-semibold text-slate-900 hover:text-indigo-600 dark:text-slate-100 dark:hover:text-indigo-400"
+              className="font-semibold text-foreground hover:underline"
             >
               {actor}
             </Link>
           ) : (
-            <span className="font-semibold text-slate-900 dark:text-slate-100">{actor}</span>
+            <span className="font-semibold text-foreground">{actor}</span>
           )}{" "}
-          {isReply ? (
-            <>
-              replied to your thread
-            </>
-          ) : (
-            <>
-              mentioned you
-            </>
-          )}
+          {isReply ? <>replied to your thread</> : <>mentioned you</>}
           {n.thread_id && n.thread_title && (
             <>
               {" "}
               {threadHref ? (
-                <Link
-                  href={threadHref}
-                  className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-                >
+                <Link href={threadHref} className="font-medium text-foreground underline underline-offset-4 hover:no-underline">
                   {n.thread_title}
                 </Link>
               ) : null}
             </>
           )}
         </p>
-        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-          {isReply ? <Reply className="size-3" /> : <AtSign className="size-3" />}
+        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          {isReply ? <ReplyIcon className="size-3" /> : <AtSignIcon className="size-3" />}
           <RelativeTime ts={n.created_at} />
         </p>
       </div>
-    </li>
+    </div>
   );
 }

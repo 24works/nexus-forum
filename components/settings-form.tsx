@@ -1,8 +1,31 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { CheckIcon } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSeparator,
+  FieldSet,
+  FieldTitle,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PublicUser } from "@/lib/types";
 import { api } from "@/lib/api-client";
@@ -33,6 +56,8 @@ export function SettingsForm({
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [verificationLink, setVerificationLink] = useState<string | null>(null);
+
+  const fieldInvalid = (name: string) => (fieldError === name ? true : undefined);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -73,117 +98,151 @@ export function SettingsForm({
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <Textarea
-        label="Bio"
-        value={bio}
-        onChange={(e) => setBio(e.target.value)}
-        rows={3}
-        maxLength={500}
-        placeholder="A short introduction shown on your profile."
-        error={fieldError === "bio" ? error ?? undefined : undefined}
-      />
+    <form onSubmit={submit}>
+      <FieldGroup>
+        <Field data-invalid={fieldInvalid("bio")}>
+          <FieldLabel htmlFor="settings-bio">Bio</FieldLabel>
+          <Textarea
+            id="settings-bio"
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            rows={3}
+            maxLength={500}
+            placeholder="A short introduction shown on your profile."
+            aria-invalid={fieldInvalid("bio")}
+          />
+          {fieldError === "bio" && error && <FieldDescription>{error}</FieldDescription>}
+        </Field>
 
-      <Textarea
-        label="Signature"
-        value={signature}
-        onChange={(e) => setSignature(e.target.value)}
-        rows={2}
-        maxLength={300}
-        placeholder="A signature displayed under your posts."
-        error={fieldError === "signature" ? error ?? undefined : undefined}
-      />
+        <Field data-invalid={fieldInvalid("signature")}>
+          <FieldLabel htmlFor="settings-signature">Signature</FieldLabel>
+          <Textarea
+            id="settings-signature"
+            value={signature}
+            onChange={(e) => setSignature(e.target.value)}
+            rows={2}
+            maxLength={300}
+            placeholder="A signature displayed under your posts."
+            aria-invalid={fieldInvalid("signature")}
+          />
+          {fieldError === "signature" && error && <FieldDescription>{error}</FieldDescription>}
+        </Field>
 
-      <Select
-        label="Theme"
-        value={theme}
-        onChange={(e) => setTheme(e.target.value as "system" | "light" | "dark")}
-        error={fieldError === "theme" ? error ?? undefined : undefined}
-      >
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </Select>
+        <Field data-invalid={fieldInvalid("theme")}>
+          <FieldLabel htmlFor="settings-theme">Theme</FieldLabel>
+          <Select value={theme} onValueChange={(v) => setTheme(v as "system" | "light" | "dark")}>
+            <SelectTrigger id="settings-theme" aria-invalid={fieldInvalid("theme")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="system">System</SelectItem>
+                <SelectItem value="light">Light</SelectItem>
+                <SelectItem value="dark">Dark</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          {fieldError === "theme" && error && <FieldDescription>{error}</FieldDescription>}
+        </Field>
 
-      <div className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2.5 dark:border-slate-700">
+        <Field orientation="horizontal">
+          <FieldContent>
+            <FieldTitle>Quick toggle</FieldTitle>
+            <FieldDescription>Switch the site theme right now.</FieldDescription>
+          </FieldContent>
+          <ThemeToggle initial={themeClass} />
+        </Field>
+
+        <Field data-invalid={fieldInvalid("email")}>
+          <FieldLabel htmlFor="settings-email">Email address</FieldLabel>
+          <Input
+            id="settings-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            aria-invalid={fieldInvalid("email")}
+          />
+          {fieldError === "email" && error && <FieldDescription>{error}</FieldDescription>}
+        </Field>
+
+        <FieldSeparator />
+
+        <FieldSet>
+          <FieldLegend>Change password</FieldLegend>
+          <FieldDescription>Leave blank to keep your current password.</FieldDescription>
+          <FieldGroup className="gap-4">
+            <Field data-invalid={fieldInvalid("currentPassword")}>
+              <FieldLabel htmlFor="settings-current-password">Current password</FieldLabel>
+              <Input
+                id="settings-current-password"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+                aria-invalid={fieldInvalid("currentPassword")}
+              />
+              {fieldError === "currentPassword" && error && <FieldDescription>{error}</FieldDescription>}
+            </Field>
+            <Field data-invalid={fieldInvalid("newPassword")}>
+              <FieldLabel htmlFor="settings-new-password">New password</FieldLabel>
+              <Input
+                id="settings-new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                aria-invalid={fieldInvalid("newPassword")}
+              />
+              {fieldError === "newPassword" && error && <FieldDescription>{error}</FieldDescription>}
+            </Field>
+            <Field data-invalid={fieldInvalid("confirmPassword")}>
+              <FieldLabel htmlFor="settings-confirm-password">Confirm new password</FieldLabel>
+              <Input
+                id="settings-confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                aria-invalid={fieldInvalid("confirmPassword")}
+              />
+              {fieldError === "confirmPassword" && error && <FieldDescription>{error}</FieldDescription>}
+            </Field>
+          </FieldGroup>
+        </FieldSet>
+
+        {error && !fieldError && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {success && (
+          <Alert>
+            <CheckIcon />
+            <AlertTitle>{success}</AlertTitle>
+          </Alert>
+        )}
+
+        {verificationLink && (
+          <Alert>
+            <AlertTitle>Email verification link (email sending not configured)</AlertTitle>
+            <AlertDescription>
+              <a href={verificationLink} className="block break-all font-mono text-xs underline underline-offset-2">
+                {verificationLink}
+              </a>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div>
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Quick toggle</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500">Switch the site theme right now.</p>
+          <Button type="submit" disabled={busy}>
+            {busy && <Spinner data-icon="inline-start" />}
+            {busy ? "Saving…" : "Save settings"}
+          </Button>
         </div>
-        <ThemeToggle initial={themeClass} />
-      </div>
-
-      <Input
-        label="Email address"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder="you@example.com"
-        autoComplete="email"
-        error={fieldError === "email" ? error ?? undefined : undefined}
-      />
-
-      <div className="border-t border-slate-200 pt-4 dark:border-slate-800">
-        <h3 className="mb-1 text-sm font-semibold text-slate-900 dark:text-slate-100">Change password</h3>
-        <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
-          Leave blank to keep your current password.
-        </p>
-        <div className="flex flex-col gap-3">
-          <Input
-            label="Current password"
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            autoComplete="current-password"
-            error={fieldError === "currentPassword" ? error ?? undefined : undefined}
-          />
-          <Input
-            label="New password"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            autoComplete="new-password"
-            error={fieldError === "newPassword" ? error ?? undefined : undefined}
-          />
-          <Input
-            label="Confirm new password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            autoComplete="new-password"
-            error={fieldError === "confirmPassword" ? error ?? undefined : undefined}
-          />
-        </div>
-      </div>
-
-      {error && !fieldError && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
-          {error}
-        </p>
-      )}
-
-      {success && (
-        <p className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-          <Check className="size-4" />
-          {success}
-        </p>
-      )}
-
-      {verificationLink && (
-        <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300">
-          <p className="font-medium">Email verification link (email sending not configured):</p>
-          <a href={verificationLink} className="mt-1 block break-all font-mono text-xs underline">
-            {verificationLink}
-          </a>
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={busy}>
-          {busy && <Loader2 className="size-4 animate-spin" />}
-          {busy ? "Saving…" : "Save settings"}
-        </Button>
-      </div>
+      </FieldGroup>
     </form>
   );
 }

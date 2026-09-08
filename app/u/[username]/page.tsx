@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarDays, MessageSquare, Pencil, FileText, Inbox } from "lucide-react";
+import { CalendarDaysIcon, FileTextIcon, InboxIcon, MessageSquareIcon, PencilIcon } from "lucide-react";
 import { currentUserRSC } from "@/lib/session-rsc";
 import { itemsPerPage } from "@/lib/settings";
 import { publicUserByUsername, userThreads, userPosts, postPageInThread } from "@/lib/queries";
-import { Avatar, Card, RoleBadge, Pagination, EmptyState, Stat } from "@/components/ui";
+import { ForumPagination } from "@/components/forum-pagination";
+import { EmptyState } from "@/components/empty-state";
+import { Stat } from "@/components/stat";
 import { ThreadRow } from "@/components/thread-row";
+import { UserAvatar } from "@/components/user-avatar";
+import { RoleBadge } from "@/components/role-badge";
 import { PostContent } from "@/components/post-content";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { FormattedDate, RelativeTime } from "@/components/time";
 
 export const dynamic = "force-dynamic";
@@ -50,35 +58,32 @@ export default async function UserProfilePage({
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       {/* Profile header */}
       <Card>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-          <Avatar name={user.username} size={64} />
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+          <UserAvatar name={user.username} size="lg" className="size-16 text-2xl" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white">{user.username}</h1>
+              <h1 className="text-xl font-bold tracking-tight">{user.username}</h1>
               <RoleBadge role={user.role} />
-              {user.status === "banned" && <span className="text-xs font-medium text-rose-600 dark:text-rose-400">Banned</span>}
+              {user.status === "banned" && <Badge variant="destructive">Banned</Badge>}
             </div>
             {user.bio ? (
-              <p className="mt-1.5 whitespace-pre-line text-sm text-slate-600 dark:text-slate-400">{user.bio}</p>
+              <p className="mt-1.5 whitespace-pre-line text-sm text-muted-foreground">{user.bio}</p>
             ) : (
-              <p className="mt-1.5 text-sm text-slate-400 dark:text-slate-500">This member has not written a bio yet.</p>
+              <p className="mt-1.5 text-sm text-muted-foreground">This member has not written a bio yet.</p>
             )}
             {user.signature && (
-              <p className="mt-2 border-t border-slate-100 pt-2 text-xs italic text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                {user.signature}
-              </p>
+              <p className="mt-2 border-t pt-2 text-xs italic text-muted-foreground">{user.signature}</p>
             )}
           </div>
           {isSelf && (
-            <Link
-              href="/me/settings"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <Pencil className="size-3.5" />
-              Edit profile
-            </Link>
+            <Button asChild variant="outline" size="sm" className="shrink-0">
+              <Link href="/me/settings">
+                <PencilIcon data-icon="inline-start" />
+                Edit profile
+              </Link>
+            </Button>
           )}
-        </div>
+        </CardContent>
       </Card>
 
       {/* Stats */}
@@ -87,7 +92,7 @@ export default async function UserProfilePage({
           label="Member since"
           value={
             <span className="inline-flex items-center gap-1.5 text-sm">
-              <CalendarDays className="size-3.5" />
+              <CalendarDaysIcon className="size-3.5" />
               <FormattedDate ts={user.created_at} />
             </span>
           }
@@ -102,47 +107,34 @@ export default async function UserProfilePage({
 
       {/* Tabs */}
       <div className="flex gap-1.5">
-        <Link
-          href={`/u/${user.username}?tab=threads`}
-          className={
-            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors " +
-            (tab === "threads"
-              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-              : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800")
-          }
-        >
-          <FileText className="size-3.5" />
-          Threads
-        </Link>
-        <Link
-          href={`/u/${user.username}?tab=posts`}
-          className={
-            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors " +
-            (tab === "posts"
-              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-              : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800")
-          }
-        >
-          <MessageSquare className="size-3.5" />
-          Posts
-        </Link>
+        <Button asChild size="sm" variant={tab === "threads" ? "default" : "outline"}>
+          <Link href={`/u/${user.username}?tab=threads`}>
+            <FileTextIcon data-icon="inline-start" />
+            Threads
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant={tab === "posts" ? "default" : "outline"}>
+          <Link href={`/u/${user.username}?tab=posts`}>
+            <MessageSquareIcon data-icon="inline-start" />
+            Posts
+          </Link>
+        </Button>
       </div>
 
       {/* Tab content */}
       {tab === "threads" && threads && (
-        <Card noPad>
+        <Card className="py-2">
           {threads.items.length === 0 ? (
-            <div className="p-5">
-              <EmptyState
-                title="No threads yet"
-                description={isSelf ? "You have not started any threads yet." : `${user.username} has not started any threads yet.`}
-                icon={<FileText className="size-8" />}
-              />
-            </div>
+            <EmptyState
+              title="No threads yet"
+              description={isSelf ? "You have not started any threads yet." : `${user.username} has not started any threads yet.`}
+              icon={<FileTextIcon />}
+            />
           ) : (
-            <ul className="divide-y divide-slate-100 px-4 sm:px-5 dark:divide-slate-800">
-              {threads.items.map((thread) => (
+            <ul className="px-2">
+              {threads.items.map((thread, idx) => (
                 <li key={thread.id}>
+                  {idx > 0 && <Separator />}
                   <ThreadRow thread={thread} showBoard />
                 </li>
               ))}
@@ -152,31 +144,28 @@ export default async function UserProfilePage({
       )}
 
       {tab === "posts" && posts && (
-        <Card noPad>
+        <Card className="py-2">
           {posts.items.length === 0 ? (
-            <div className="p-5">
-              <EmptyState
-                title="No posts yet"
-                description={isSelf ? "You have not posted yet." : `${user.username} has not posted yet.`}
-                icon={<Inbox className="size-8" />}
-              />
-            </div>
+            <EmptyState
+              title="No posts yet"
+              description={isSelf ? "You have not posted yet." : `${user.username} has not posted yet.`}
+              icon={<InboxIcon />}
+            />
           ) : (
-            <ul className="divide-y divide-slate-100 px-4 sm:px-5 dark:divide-slate-800">
+            <ul className="px-2">
               {posts.items.map((post, idx) => (
-                <li key={post.id} className="py-3">
+                <li key={post.id}>
+                  {idx > 0 && <Separator />}
                   <Link
                     href={`/t/${post.thread_id}?page=${postPages?.[idx] ?? 1}#post-${post.id}`}
-                    className="group block"
+                    className="group block rounded-lg px-2 py-3 transition-colors hover:bg-muted/50"
                   >
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-                      <MessageSquare className="size-3" />
-                      <span className="font-medium text-slate-500 group-hover:text-indigo-600 dark:text-slate-400 dark:group-hover:text-indigo-400">
-                        {post.thread_title}
-                      </span>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <MessageSquareIcon className="size-3" />
+                      <span className="font-medium group-hover:underline">{post.thread_title}</span>
                       <span>· <RelativeTime ts={post.created_at} /></span>
                     </div>
-                    <div className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
+                    <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                       <PostContent html={post.content_html} />
                     </div>
                   </Link>
@@ -187,7 +176,7 @@ export default async function UserProfilePage({
         </Card>
       )}
 
-      <Pagination
+      <ForumPagination
         page={tab === "threads" ? (threads?.page ?? 1) : (posts?.page ?? 1)}
         totalPages={tab === "threads" ? (threads?.totalPages ?? 1) : (posts?.totalPages ?? 1)}
         buildHref={buildHref}

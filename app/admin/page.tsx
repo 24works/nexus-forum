@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
-  Flag,
-  Users as UsersIcon,
-  LayoutGrid,
-  ScrollText,
-  Gauge,
-  ShieldCheck,
+  FlagIcon,
+  GaugeIcon,
+  LayoutGridIcon,
+  ScrollTextIcon,
+  ShieldCheckIcon,
+  ShieldXIcon,
+  UsersIcon,
 } from "lucide-react";
 import { PublicUser } from "@/lib/types";
 import { currentUserRSC } from "@/lib/session-rsc";
@@ -20,7 +21,17 @@ import {
   listBoards,
 } from "@/lib/queries";
 import { ReportActions, UserActions, BoardCreateForm, BoardRowActions } from "@/components/admin-actions";
-import { Card, Badge, RoleBadge, Pagination, EmptyState, Avatar, Stat } from "@/components/ui";
+import { ForumPagination } from "@/components/forum-pagination";
+import { EmptyState } from "@/components/empty-state";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Stat } from "@/components/stat";
+import { UserAvatar } from "@/components/user-avatar";
+import { RoleBadge } from "@/components/role-badge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import { RelativeTime } from "@/components/time";
 
 export const metadata: Metadata = { title: "Moderation" };
@@ -29,11 +40,11 @@ export const dynamic = "force-dynamic";
 type Tab = "overview" | "reports" | "users" | "boards" | "audit";
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
-  { id: "overview", label: "Overview", icon: <Gauge className="size-4" /> },
-  { id: "reports", label: "Reports", icon: <Flag className="size-4" /> },
-  { id: "users", label: "Users", icon: <UsersIcon className="size-4" /> },
-  { id: "boards", label: "Categories", icon: <LayoutGrid className="size-4" />, adminOnly: true },
-  { id: "audit", label: "Audit log", icon: <ScrollText className="size-4" /> },
+  { id: "overview", label: "Overview", icon: <GaugeIcon /> },
+  { id: "reports", label: "Reports", icon: <FlagIcon /> },
+  { id: "users", label: "Users", icon: <UsersIcon /> },
+  { id: "boards", label: "Categories", icon: <LayoutGridIcon />, adminOnly: true },
+  { id: "audit", label: "Audit log", icon: <ScrollTextIcon /> },
 ];
 
 export default async function AdminPage({
@@ -43,7 +54,11 @@ export default async function AdminPage({
 }) {
   const user = await currentUserRSC();
   if (!user) redirect("/login?next=/admin");
-  if (user.role !== "admin" && user.role !== "moderator") notFound();
+  if (user.role !== "admin" && user.role !== "moderator") {
+    // Members reach this page mostly via the footer link — show a friendly
+    // denial (with a way out) instead of the bare 404.
+    return <AccessDenied username={user.username} />;
+  }
 
   const sp = await searchParams;
   const requested = (sp.tab ?? "overview") as Tab;
@@ -57,33 +72,28 @@ export default async function AdminPage({
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
-            <ShieldCheck className="size-6 text-indigo-600 dark:text-indigo-400" /> Moderation
+          <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight">
+            <ShieldCheckIcon className="size-6" /> Moderation
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Manage reports, members and categories.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Manage reports, members and categories.</p>
         </div>
-        <Badge color={user.role === "admin" ? "rose" : "emerald"}>
-          Signed in as {user.role}
-        </Badge>
+        <Badge variant={user.role === "admin" ? "default" : "secondary"}>Signed in as {user.role}</Badge>
       </div>
 
-      <nav className="flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 dark:border-slate-800 dark:bg-slate-900">
+      <nav className="flex flex-wrap gap-1.5 rounded-xl border bg-card p-1.5">
         {TABS.filter((t) => !t.adminOnly || user.role === "admin").map((t) => (
-          <Link
+          <Button
             key={t.id}
-            href={`/admin?tab=${t.id}`}
-            className={
-              "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors " +
-              (tab === t.id
-                ? "bg-indigo-600 text-white"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800")
-            }
+            asChild
+            size="sm"
+            variant={tab === t.id ? "default" : "ghost"}
+            className={cn(tab !== t.id && "text-muted-foreground")}
           >
-            {t.icon}
-            {t.label}
-          </Link>
+            <Link href={`/admin?tab=${t.id}`}>
+              <span className="[&>svg]:size-3.5">{t.icon}</span>
+              {t.label}
+            </Link>
+          </Button>
         ))}
       </nav>
 
@@ -92,6 +102,37 @@ export default async function AdminPage({
       {tab === "users" && <Users page={page} perPage={perPage} search={sp.q} viewerRole={user.role} viewerId={user.id} />}
       {tab === "boards" && user.role === "admin" && <Boards viewer={user} />}
       {tab === "audit" && <Audit page={page} perPage={perPage} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function AccessDenied({ username }: { username: string }) {
+  return (
+    <div className="mx-auto w-full max-w-md pt-10">
+      <Card className="py-12">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldXIcon />
+            </EmptyMedia>
+            <EmptyTitle>No access to the moderation dashboard</EmptyTitle>
+            <EmptyDescription>
+              This area is only available to moderators and administrators. If you believe you should have access,
+              please contact the site administrators.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent className="flex-row items-center justify-center gap-2">
+            <Button asChild>
+              <Link href="/">Back to the forum</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/u/${username}`}>Your profile</Link>
+            </Button>
+          </EmptyContent>
+        </Empty>
+      </Card>
     </div>
   );
 }
@@ -111,29 +152,24 @@ async function Overview({ viewerRole }: { viewerRole: "admin" | "moderator" }) {
         <Stat label="Open reports" value={stats.openReports.toLocaleString()} />
       </div>
       <Card>
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Quick actions</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link
-            href="/admin?tab=reports"
-            className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            Review {stats.openReports} open report{stats.openReports === 1 ? "" : "s"}
-          </Link>
-          <Link
-            href="/admin?tab=users"
-            className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            Manage users
-          </Link>
-          {viewerRole === "admin" && (
-            <Link
-              href="/admin?tab=boards"
-              className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-            >
-              Manage categories
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Quick actions</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/admin?tab=reports">
+              Review {stats.openReports} open report{stats.openReports === 1 ? "" : "s"}
             </Link>
+          </Button>
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/admin?tab=users">Manage users</Link>
+          </Button>
+          {viewerRole === "admin" && (
+            <Button asChild variant="secondary" size="sm">
+              <Link href="/admin?tab=boards">Manage categories</Link>
+            </Button>
           )}
-        </div>
+        </CardContent>
       </Card>
     </div>
   );
@@ -146,54 +182,60 @@ async function Reports({ page, perPage }: { page: number; perPage: number }) {
   return (
     <div className="flex flex-col gap-4">
       {data.items.length === 0 ? (
-        <EmptyState
-          title="No reports"
-          description="Reported posts from the community will show up here."
-          icon={<Flag className="size-8" />}
-        />
+        <Card className="py-10">
+          <EmptyState
+            title="No reports"
+            description="Reported posts from the community will show up here."
+            icon={<FlagIcon />}
+          />
+        </Card>
       ) : (
-        <Card noPad>
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {data.items.map((r) => (
-              <li key={r.id} className="flex flex-col gap-2 p-4">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <Badge color={r.status === "open" ? "amber" : r.status === "resolved" ? "emerald" : "slate"}>
-                    {r.status}
-                  </Badge>
-                  <span>
-                    Reported by <strong className="text-slate-700 dark:text-slate-200">{r.reporter_username ?? "unknown"}</strong>
-                  </span>
-                  <RelativeTime ts={r.created_at} />
-                </div>
-                <p className="text-sm text-slate-800 dark:text-slate-100">“{r.reason}”</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Post #{r.post_id}
-                  {r.post_author_username ? <> by {r.post_author_username}</> : null}
-                  {r.thread_title ? (
-                    <>
-                      {" "}in{" "}
-                      <Link href={`/t/${r.thread_id}?page=1#post-${r.post_id}`} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-                        {r.thread_title}
-                      </Link>
-                    </>
-                  ) : null}
-                </p>
-                {r.post_preview && (
-                  <p className="line-clamp-2 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
-                    {r.post_preview}
+        <Card className="py-0">
+          <ul>
+            {data.items.map((r, idx) => (
+              <li key={r.id}>
+                {idx > 0 && <Separator />}
+                <div className="flex flex-col gap-2 p-4">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant={r.status === "open" ? "default" : r.status === "resolved" ? "secondary" : "outline"}>
+                      {r.status}
+                    </Badge>
+                    <span>
+                      Reported by{" "}
+                      <strong className="font-medium text-foreground">{r.reporter_username ?? "unknown"}</strong>
+                    </span>
+                    <RelativeTime ts={r.created_at} />
+                  </div>
+                  <p className="text-sm">“{r.reason}”</p>
+                  <p className="text-xs text-muted-foreground">
+                    Post #{r.post_id}
+                    {r.post_author_username ? <> by {r.post_author_username}</> : null}
+                    {r.thread_title ? (
+                      <>
+                        {" "}
+                        in{" "}
+                        <Link
+                          href={`/t/${r.thread_id}?page=1#post-${r.post_id}`}
+                          className="font-medium text-foreground underline underline-offset-4 hover:no-underline"
+                        >
+                          {r.thread_title}
+                        </Link>
+                      </>
+                    ) : null}
                   </p>
-                )}
-                <ReportActions reportId={r.id} status={r.status} />
+                  {r.post_preview && (
+                    <p className="line-clamp-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                      {r.post_preview}
+                    </p>
+                  )}
+                  <ReportActions reportId={r.id} status={r.status} />
+                </div>
               </li>
             ))}
           </ul>
         </Card>
       )}
-      <Pagination
-        page={data.page}
-        totalPages={data.totalPages}
-        buildHref={(p) => `/admin?tab=reports&page=${p}`}
-      />
+      <ForumPagination page={data.page} totalPages={data.totalPages} buildHref={(p) => `/admin?tab=reports&page=${p}`} />
     </div>
   );
 }
@@ -216,38 +258,41 @@ async function Users({
   const data = await adminUsers({ page, perPage, search });
   return (
     <div className="flex flex-col gap-4">
-      <Card noPad>
-        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-          {data.items.map((u) => (
-            <li key={u.id} className="flex flex-wrap items-center gap-3 p-4">
-              <Avatar name={u.username} size={36} />
-              <div className="min-w-40 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Link href={`/u/${u.username}`} className="font-medium text-slate-900 hover:text-indigo-600 dark:text-slate-100 dark:hover:text-indigo-400">
-                    {u.username}
-                  </Link>
-                  <RoleBadge role={u.role} />
-                  {u.status === "banned" && <Badge color="rose">Banned</Badge>}
-                  {u.email && !u.email_verified && <Badge color="amber">Unverified email</Badge>}
+      <Card className="py-0">
+        <ul>
+          {data.items.map((u, idx) => (
+            <li key={u.id}>
+              {idx > 0 && <Separator />}
+              <div className="flex flex-wrap items-center gap-3 p-4">
+                <UserAvatar name={u.username} />
+                <div className="min-w-40 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link href={`/u/${u.username}`} className="font-medium hover:underline">
+                      {u.username}
+                    </Link>
+                    <RoleBadge role={u.role} />
+                    {u.status === "banned" && <Badge variant="destructive">Banned</Badge>}
+                    {u.email && !u.email_verified && <Badge variant="outline">Unverified email</Badge>}
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {u.post_count} posts · {u.thread_count} threads · joined <RelativeTime ts={u.created_at} />
+                    {u.email ? ` · ${u.email}` : ""}
+                  </p>
+                  {u.ban_reason && <p className="mt-0.5 text-xs text-destructive">Reason: {u.ban_reason}</p>}
                 </div>
-                <p className="mt-0.5 text-xs text-slate-400">
-                  {u.post_count} posts · {u.thread_count} threads · joined <RelativeTime ts={u.created_at} />
-                  {u.email ? ` · ${u.email}` : ""}
-                </p>
-                {u.ban_reason && <p className="mt-0.5 text-xs text-rose-500">Reason: {u.ban_reason}</p>}
+                <UserActions
+                  userId={u.id}
+                  status={u.status}
+                  role={u.role}
+                  viewerRole={viewerRole}
+                  isSelf={u.id === viewerId}
+                />
               </div>
-              <UserActions
-                userId={u.id}
-                status={u.status}
-                role={u.role}
-                viewerRole={viewerRole}
-                isSelf={u.id === viewerId}
-              />
             </li>
           ))}
         </ul>
       </Card>
-      <Pagination page={data.page} totalPages={data.totalPages} buildHref={(p) => `/admin?tab=users&page=${p}`} />
+      <ForumPagination page={data.page} totalPages={data.totalPages} buildHref={(p) => `/admin?tab=users&page=${p}`} />
     </div>
   );
 }
@@ -259,33 +304,40 @@ async function Boards({ viewer }: { viewer: PublicUser }) {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Create a category</h2>
-        <BoardCreateForm />
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold">Create a category</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BoardCreateForm />
+        </CardContent>
       </Card>
-      <Card noPad>
-        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-          {boards.map((b) => (
-            <li key={b.id} className="flex flex-col p-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Link href={`/board/${b.slug}`} className="font-medium text-slate-900 hover:text-indigo-600 dark:text-slate-100 dark:hover:text-indigo-400">
-                  {b.name}
-                </Link>
-                <Badge color="slate">/{b.slug}</Badge>
-                <Badge color={b.role === "everyone" ? "emerald" : "amber"}>{b.role}</Badge>
-                {b.is_enabled === 0 && <Badge color="rose">Hidden</Badge>}
-                <span className="text-xs text-slate-400">
-                  position {b.position} · {b.thread_count} threads · {b.post_count} posts
-                </span>
+      <Card className="py-0">
+        <ul>
+          {boards.map((b, idx) => (
+            <li key={b.id}>
+              {idx > 0 && <Separator />}
+              <div className="flex flex-col p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Link href={`/board/${b.slug}`} className="font-medium hover:underline">
+                    {b.name}
+                  </Link>
+                  <Badge variant="outline">/{b.slug}</Badge>
+                  <Badge variant={b.role === "everyone" ? "secondary" : "outline"}>{b.role}</Badge>
+                  {b.is_enabled === 0 && <Badge variant="destructive">Hidden</Badge>}
+                  <span className="text-xs text-muted-foreground">
+                    position {b.position} · {b.thread_count} threads · {b.post_count} posts
+                  </span>
+                </div>
+                {b.description && <p className="mt-1 text-xs text-muted-foreground">{b.description}</p>}
+                <BoardRowActions
+                  boardId={b.id}
+                  isEnabled={b.is_enabled === 1}
+                  role={b.role}
+                  position={b.position}
+                  name={b.name}
+                  description={b.description}
+                />
               </div>
-              {b.description && <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{b.description}</p>}
-              <BoardRowActions
-                boardId={b.id}
-                isEnabled={b.is_enabled === 1}
-                role={b.role}
-                position={b.position}
-                name={b.name}
-                description={b.description}
-              />
             </li>
           ))}
         </ul>
@@ -301,26 +353,31 @@ async function Audit({ page, perPage }: { page: number; perPage: number }) {
   return (
     <div className="flex flex-col gap-4">
       {data.items.length === 0 ? (
-        <EmptyState title="No audit entries yet" icon={<ScrollText className="size-8" />} />
+        <Card className="py-10">
+          <EmptyState title="No audit entries yet" icon={<ScrollTextIcon />} />
+        </Card>
       ) : (
-        <Card noPad>
-          <ul className="divide-y divide-slate-100 font-mono text-xs dark:divide-slate-800">
-            {data.items.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
-                <span className="text-slate-400">
-                  <RelativeTime ts={a.created_at} />
-                </span>
-                <span className="font-semibold text-slate-800 dark:text-slate-100">{a.action}</span>
-                <span className="text-slate-500 dark:text-slate-400">
-                  by {a.actor_username ?? "system"} → {a.target_type}#{a.target_id}
-                </span>
-                {a.details && <span className="truncate text-slate-400">{a.details}</span>}
+        <Card className="py-0">
+          <ul className="font-mono text-xs">
+            {data.items.map((a, idx) => (
+              <li key={a.id}>
+                {idx > 0 && <Separator />}
+                <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
+                  <span className="text-muted-foreground">
+                    <RelativeTime ts={a.created_at} />
+                  </span>
+                  <span className="font-semibold text-foreground">{a.action}</span>
+                  <span className="text-muted-foreground">
+                    by {a.actor_username ?? "system"} → {a.target_type}#{a.target_id}
+                  </span>
+                  {a.details && <span className="truncate text-muted-foreground">{a.details}</span>}
+                </div>
               </li>
             ))}
           </ul>
         </Card>
       )}
-      <Pagination page={data.page} totalPages={data.totalPages} buildHref={(p) => `/admin?tab=audit&page=${p}`} />
+      <ForumPagination page={data.page} totalPages={data.totalPages} buildHref={(p) => `/admin?tab=audit&page=${p}`} />
     </div>
   );
 }

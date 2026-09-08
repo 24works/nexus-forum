@@ -1,14 +1,15 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
-import { Button, Input } from "@/components/ui";
+import { ShieldCheckIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api-client";
 
 export function ResetPasswordForm({ token }: { token: string }) {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,8 +29,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
         setBusy(false);
         return;
       }
-      router.push("/");
-      router.refresh();
+      // Hard navigation so the server render reflects the current session.
+      window.location.assign("/");
     } catch {
       setError("A network error occurred.");
       setBusy(false);
@@ -38,42 +39,54 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   if (!token) {
     return (
-      <p className="rounded-lg bg-rose-50 px-3 py-3 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
-        Missing reset token. Please use the link from your password reset email.
-      </p>
+      <Alert variant="destructive">
+        <AlertDescription>
+          Missing reset token. Please use the link from your password reset email.
+        </AlertDescription>
+      </Alert>
     );
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <Input
-        label="New password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        autoComplete="new-password"
-        required
-        minLength={8}
-        maxLength={128}
-        autoFocus
-        placeholder="At least 8 characters, letters + numbers"
-      />
-      <Input
-        label="Confirm new password"
-        type="password"
-        value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
-        autoComplete="new-password"
-        required
-        minLength={8}
-      />
-      {error && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</p>
-      )}
-      <Button type="submit" disabled={busy} className="w-full">
-        <ShieldCheck className="size-4" />
-        {busy ? "Resetting…" : "Reset password"}
-      </Button>
+    <form onSubmit={submit}>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="reset-password">New password</FieldLabel>
+          <Input
+            id="reset-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            required
+            minLength={8}
+            maxLength={128}
+            autoFocus
+            placeholder="At least 8 characters, letters + numbers"
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="reset-confirm">Confirm new password</FieldLabel>
+          <Input
+            id="reset-confirm"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            required
+            minLength={8}
+          />
+        </Field>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <Spinner data-icon="inline-start" /> : <ShieldCheckIcon data-icon="inline-start" />}
+          {busy ? "Resetting…" : "Reset password"}
+        </Button>
+      </FieldGroup>
     </form>
   );
 }

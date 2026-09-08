@@ -1,30 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
+import { MoonIcon, SunIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
+/**
+ * Instant theme switch driven by the `.dark` class on <html> (cookie-backed).
+ * Both icons render and CSS picks the right one, so there is no client state
+ * to hydrate.
+ */
 export function ThemeToggle({ initial }: { initial: "light" | "dark" }) {
-  const [theme, setTheme] = useState<"light" | "dark">(initial);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme]);
-
   const toggle = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.cookie = `theme=${next}; path=/; max-age=31536000; samesite=lax`;
-    document.documentElement.classList.toggle("dark", next === "dark");
+    const dark = document.documentElement.classList.toggle("dark");
+    document.cookie = `theme=${dark ? "dark" : "light"}; path=/; max-age=31536000; samesite=lax`;
   };
 
   return (
-    <button
-      onClick={toggle}
-      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      className="inline-flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-    >
-      {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
-    </button>
+    <Button variant="ghost" size="icon-sm" onClick={toggle} aria-label="Toggle theme" title="Toggle theme">
+      <SunIcon className="dark:hidden" />
+      <MoonIcon className="hidden dark:block" />
+    </Button>
   );
 }

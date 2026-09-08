@@ -2,8 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, Flag, X, Check } from "lucide-react";
-import { Button, Textarea } from "@/components/ui";
+import { CheckIcon, FlagIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api-client";
 
 interface PostActionsProps {
@@ -14,7 +29,7 @@ interface PostActionsProps {
   initialContent: string;
 }
 
-export function PostActions({ postId, threadId, isOwner, isModerator, initialContent }: PostActionsProps) {
+export function PostActions({ postId, isOwner, isModerator, initialContent }: PostActionsProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(initialContent);
@@ -23,8 +38,7 @@ export function PostActions({ postId, threadId, isOwner, isModerator, initialCon
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleDelete = async () => {
-    if (!window.confirm("Delete this post permanently?")) return;
+  const deletePost = async () => {
     setBusy(true);
     setError(null);
     try {
@@ -84,44 +98,63 @@ export function PostActions({ postId, threadId, isOwner, isModerator, initialCon
 
   if (editing) {
     return (
-      <div className="mt-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={6}
-          label="Edit post"
-          error={error ?? undefined}
-        />
-        <div className="mt-2 flex items-center gap-2">
+      <FieldGroup className="rounded-lg border p-3">
+        <Field data-invalid={error ? true : undefined}>
+          <FieldLabel htmlFor={`edit-post-${postId}`}>Edit post</FieldLabel>
+          <Textarea
+            id={`edit-post-${postId}`}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={6}
+            aria-invalid={error ? true : undefined}
+          />
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </Field>
+        <div className="flex items-center gap-2">
           <Button size="sm" onClick={saveEdit} disabled={busy}>
-            <Check className="size-4" /> Save
+            {busy ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
+            Save
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={busy}>
-            <X className="size-4" /> Cancel
+            <XIcon data-icon="inline-start" />
+            Cancel
           </Button>
         </div>
-      </div>
+      </FieldGroup>
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {(isOwner || isModerator) && (
-        <button
-          onClick={() => setEditing(true)}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-        >
-          <Pencil className="size-3.5" /> Edit
-        </button>
+        <Button variant="ghost" size="xs" onClick={() => setEditing(true)} className="text-muted-foreground">
+          <PencilIcon data-icon="inline-start" />
+          Edit
+        </Button>
       )}
       {(isOwner || isModerator) && (
-        <button
-          onClick={handleDelete}
-          disabled={busy}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
-        >
-          <Trash2 className="size-3.5" /> Delete
-        </button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="xs" disabled={busy} className="text-muted-foreground">
+              <Trash2Icon data-icon="inline-start" />
+              Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This post will be permanently removed from the thread.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction variant="destructive" onClick={deletePost}>
+                Delete post
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {reporting ? (
@@ -132,16 +165,16 @@ export function PostActions({ postId, threadId, isOwner, isModerator, initialCon
             submitReport();
           }}
         >
-          <input
+          <Input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             required
             minLength={4}
             maxLength={500}
             placeholder="Why are you reporting this?"
-            className="w-56 rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="h-7 w-56 text-xs"
           />
-          <Button type="submit" size="sm" variant="danger" disabled={busy}>
+          <Button type="submit" size="sm" variant="destructive" disabled={busy}>
             Submit
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => setReporting(false)}>
@@ -149,14 +182,17 @@ export function PostActions({ postId, threadId, isOwner, isModerator, initialCon
           </Button>
         </form>
       ) : (
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => setReporting(true)}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-amber-50 hover:text-amber-600 dark:text-slate-400 dark:hover:bg-amber-500/10 dark:hover:text-amber-400"
+          className="text-muted-foreground"
         >
-          <Flag className="size-3.5" /> Report
-        </button>
+          <FlagIcon data-icon="inline-start" />
+          Report
+        </Button>
       )}
-      {error && <span className="text-xs text-rose-600 dark:text-rose-400">{error}</span>}
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </div>
   );
 }

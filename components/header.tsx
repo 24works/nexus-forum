@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Clapperboard, LayoutGrid, Search, Shield } from "lucide-react";
+import { LayoutGridIcon, SearchIcon, ShieldIcon } from "lucide-react";
 import { forumName } from "@/lib/settings";
 import { PublicUser } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { cn } from "@/components/ui";
 import { UserMenu } from "@/components/user-menu";
 
 export function Header({
@@ -16,46 +16,69 @@ export function Header({
   theme: "light" | "dark";
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur-lg dark:border-slate-800 dark:bg-slate-950/80">
-      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-lg">
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4 sm:px-6">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-indigo-600 text-white dark:bg-indigo-500">
-            <Clapperboard className="size-4.5" />
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <svg
+              className="size-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z" />
+              <path d="m6.2 5.3 3.1 3.9" />
+              <path d="m12.4 3.4 3.1 4" />
+              <path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+            </svg>
           </span>
-          <span className="hidden text-base font-semibold tracking-tight text-slate-900 sm:block dark:text-white">
-            {forumName()}
-          </span>
+          <span className="hidden text-base font-semibold tracking-tight sm:block">{forumName()}</span>
         </Link>
 
-        <nav className="ml-4 hidden items-center gap-1 md:flex">
-          <HeaderLink href="/" icon={<LayoutGrid className="size-4" />} label="Boards" />
-          <HeaderLink href="/search" icon={<Search className="size-4" />} label="Search" />
-          {user?.role === "admin" && (
-            <HeaderLink href="/admin" icon={<Shield className="size-4" />} label="Admin" />
+        <nav className="ml-3 hidden items-center gap-1 md:flex">
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/">
+              <LayoutGridIcon data-icon="inline-start" />
+              Boards
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/search">
+              <SearchIcon data-icon="inline-start" />
+              Search
+            </Link>
+          </Button>
+          {(user?.role === "admin" || user?.role === "moderator") && (
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/admin">
+                <ShieldIcon data-icon="inline-start" />
+                Admin
+              </Link>
+            </Button>
           )}
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <HeaderIconLink href="/search" ariaLabel="Search" className="md:hidden">
-            <Search className="size-5" />
-          </HeaderIconLink>
+          <Button asChild variant="ghost" size="icon-sm" className="md:hidden" aria-label="Search">
+            <Link href="/search">
+              <SearchIcon />
+            </Link>
+          </Button>
 
           {user ? (
             <UserMenu user={user} unread={unread} />
           ) : (
-            <div className="flex items-center gap-2">
-              <Link
-                href="/login"
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/register"
-                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
-              >
-                Register
-              </Link>
+            <div className="flex items-center gap-1.5">
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/login">Log in</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/register">Register</Link>
+              </Button>
             </div>
           )}
 
@@ -63,42 +86,5 @@ export function Header({
         </div>
       </div>
     </header>
-  );
-}
-
-function HeaderLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-    >
-      {icon}
-      {label}
-    </Link>
-  );
-}
-
-function HeaderIconLink({
-  href,
-  ariaLabel,
-  className,
-  children,
-}: {
-  href: string;
-  ariaLabel: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-label={ariaLabel}
-      className={cn(
-        "inline-flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white",
-        className
-      )}
-    >
-      {children}
-    </Link>
   );
 }

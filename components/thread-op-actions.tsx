@@ -9,8 +9,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, X, Check } from "lucide-react";
-import { Button, Input, Textarea } from "@/components/ui";
+import { CheckIcon, PencilIcon, Trash2Icon, XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api-client";
 
 export function ThreadOpActions({
@@ -61,8 +76,7 @@ export function ThreadOpActions({
     setBusy(false);
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm("Delete this thread? All replies will be hidden as well.")) return;
+  const deleteThread = async () => {
     setBusy(true);
     setError(null);
     try {
@@ -85,46 +99,75 @@ export function ThreadOpActions({
 
   if (editing) {
     return (
-      <div className="mt-3 flex flex-col gap-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-        <Input label="Title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} required />
-        <Textarea label="Message" value={content} onChange={(e) => setContent(e.target.value)} rows={8} required />
-        <Input
-          label="Tags (comma separated)"
-          value={tags}
-          onChange={(e) => setTags(e.target.value)}
-          maxLength={120}
-        />
-        {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
+      <FieldGroup className="rounded-lg border p-3">
+        <Field data-invalid={error ? true : undefined}>
+          <FieldLabel htmlFor={`op-title-${threadId}`}>Title</FieldLabel>
+          <Input
+            id={`op-title-${threadId}`}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={120}
+            required
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`op-content-${threadId}`}>Message</FieldLabel>
+          <Textarea
+            id={`op-content-${threadId}`}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={8}
+            required
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`op-tags-${threadId}`}>Tags (comma separated)</FieldLabel>
+          <Input id={`op-tags-${threadId}`} value={tags} onChange={(e) => setTags(e.target.value)} maxLength={120} />
+        </Field>
+        {error && <p className="text-xs text-destructive">{error}</p>}
         <div className="flex items-center gap-2">
           <Button size="sm" onClick={saveEdit} disabled={busy}>
-            <Check className="size-4" /> Save
+            {busy ? <Spinner data-icon="inline-start" /> : <CheckIcon data-icon="inline-start" />}
+            Save
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={busy}>
-            <X className="size-4" /> Cancel
+            <XIcon data-icon="inline-start" />
+            Cancel
           </Button>
         </div>
-      </div>
+      </FieldGroup>
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
-      >
-        <Pencil className="size-3.5" /> Edit
-      </button>
-      <button
-        type="button"
-        onClick={handleDelete}
-        disabled={busy}
-        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-400"
-      >
-        <Trash2 className="size-3.5" /> Delete
-      </button>
-      {error && <span className="text-xs text-rose-600 dark:text-rose-400">{error}</span>}
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Button variant="ghost" size="xs" onClick={() => setEditing(true)} className="text-muted-foreground">
+        <PencilIcon data-icon="inline-start" />
+        Edit
+      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="ghost" size="xs" disabled={busy} className="text-muted-foreground">
+            <Trash2Icon data-icon="inline-start" />
+            Delete
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this thread?</AlertDialogTitle>
+            <AlertDialogDescription>
+              All replies will be hidden as well. This cannot be undone from the forum.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={deleteThread}>
+              Delete thread
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </div>
   );
 }

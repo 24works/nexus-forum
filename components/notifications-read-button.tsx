@@ -1,13 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { CheckCheck, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui";
+import { CheckCheckIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api-client";
 
 export function MarkAllReadButton() {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -19,17 +18,18 @@ export function MarkAllReadButton() {
         json: {},
       });
       setDone(true);
-      // Refresh so the unread dots and header badge disappear immediately.
-      router.refresh();
+      // The unread badge lives in the server-rendered header, which the
+      // client-side router keeps cached — a full reload re-renders it.
+      window.location.reload();
     } catch {
       // silently ignore
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   return (
     <Button variant="ghost" size="sm" disabled={busy || done} onClick={markAll}>
-      {busy ? <Loader2 className="size-4 animate-spin" /> : <CheckCheck className="size-4" />}
+      {busy ? <Spinner data-icon="inline-start" /> : <CheckCheckIcon data-icon="inline-start" />}
       {done ? "All caught up" : "Mark all read"}
     </Button>
   );

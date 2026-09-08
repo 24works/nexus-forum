@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { MessageSquare, FileSearch, Hash } from "lucide-react";
+import { FileSearchIcon, HashIcon, MessageSquareIcon } from "lucide-react";
 import { currentUserRSC } from "@/lib/session-rsc";
 import { itemsPerPage } from "@/lib/settings";
 import { searchForum, SearchResult, listBoards, getBoardBySlugRow } from "@/lib/queries";
 import { getDb } from "@/lib/db";
 import { SearchBox } from "@/components/search-box";
-import { Card, Badge, Pagination, EmptyState, Avatar } from "@/components/ui";
+import { ForumPagination } from "@/components/forum-pagination";
+import { EmptyState } from "@/components/empty-state";
+import { UserAvatar } from "@/components/user-avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { RelativeTime } from "@/components/time";
 
 export const metadata: Metadata = { title: "Search" };
@@ -53,8 +59,8 @@ export default async function SearchPage({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Search the forum</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <h1 className="text-xl font-bold tracking-tight">Search the forum</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Find threads by keyword, including thread titles and post contents.
         </p>
       </div>
@@ -63,55 +69,63 @@ export default async function SearchPage({
 
       {q && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-slate-500 dark:text-slate-400">
+          <span className="text-sm text-muted-foreground">
             {results?.total ?? 0} result{results?.total === 1 ? "" : "s"} for “
-            <span className="font-medium text-slate-800 dark:text-slate-200">{q}</span>”
+            <span className="font-medium text-foreground">{q}</span>”
           </span>
           {board && (
-            <Badge color="indigo">
-              in <Link href={`/board/${board.slug}`}>{board.name}</Link>
+            <Badge variant="secondary">
+              in{" "}
+              <Link href={`/board/${board.slug}`} className="underline underline-offset-2">
+                {board.name}
+              </Link>
             </Badge>
           )}
         </div>
       )}
 
       {q && results && results.items.length > 0 && (
-        <Card noPad>
-          <ul className="divide-y divide-slate-100 px-4 sm:px-5 dark:divide-slate-800">
-            {results.items.map((r) => (
-              <SearchItem key={`${r.type}-${r.threadId}-${r.postId ?? 0}`} result={r} />
+        <Card className="py-2">
+          <ul className="px-2">
+            {results.items.map((r, idx) => (
+              <li key={`${r.type}-${r.threadId}-${r.postId ?? 0}`}>
+                {idx > 0 && <Separator />}
+                <SearchItem result={r} />
+              </li>
             ))}
           </ul>
         </Card>
       )}
 
       {q && results && results.items.length === 0 && (
-        <EmptyState
-          title="No results found"
-          description="Try different keywords, or check your spelling."
-          icon={<FileSearch className="size-8" />}
-        />
+        <Card className="py-10">
+          <EmptyState
+            title="No results found"
+            description="Try different keywords, or check your spelling."
+            icon={<FileSearchIcon />}
+          />
+        </Card>
       )}
 
       {q && results && results.totalPages > 1 && (
-        <Pagination page={page} totalPages={results.totalPages} buildHref={buildHref} />
+        <ForumPagination page={page} totalPages={results.totalPages} buildHref={buildHref} />
       )}
 
       {!q && (
-        <Card className="flex flex-col gap-4">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Browse categories</h2>
-          <div className="flex flex-wrap gap-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold">Browse categories</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
             {boards.map((b) => (
-              <Link
-                key={b.id}
-                href={`/search?board=${b.slug}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-              >
-                <Hash className="size-3.5" />
-                {b.name}
-              </Link>
+              <Button key={b.id} asChild variant="outline" size="sm">
+                <Link href={`/search?board=${b.slug}`}>
+                  <HashIcon data-icon="inline-start" />
+                  {b.name}
+                </Link>
+              </Button>
             ))}
-          </div>
+          </CardContent>
         </Card>
       )}
     </div>
@@ -120,40 +134,36 @@ export default async function SearchPage({
 
 function SearchItem({ result }: { result: SearchResult }) {
   return (
-    <li className="py-3">
-      <Link
-        href={`/t/${result.threadId}${result.postId ? `?page=${result.postPage ?? 1}#post-${result.postId}` : ""}`}
-        className="group block"
-      >
-        <div className="flex items-center gap-1.5">
-          <Badge color={result.type === "thread" ? "indigo" : "slate"}>
-            {result.type === "thread" ? "Thread" : "Post"}
-          </Badge>
-          <span className="text-xs text-slate-400">{result.boardName}</span>
-        </div>
-        <p className="mt-1 font-medium text-slate-900 group-hover:text-indigo-600 dark:text-slate-100 dark:group-hover:text-indigo-400">
-          {result.threadTitle}
-        </p>
-        {result.snippet && (
-          <p
-            className="mt-0.5 line-clamp-2 text-sm text-slate-500 dark:text-slate-400"
-            dangerouslySetInnerHTML={{ __html: result.snippet }}
-          />
-        )}
-        <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
-          <span className="inline-flex items-center gap-1">
-            <Avatar name={result.authorUsername ?? "?"} size={16} className="rounded-full" />
-            {result.authorUsername}
-          </span>
-          <span>
-            <RelativeTime ts={result.createdAt} />
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <MessageSquare className="size-3.5" />
-            {result.replyCount}
-          </span>
-        </div>
-      </Link>
-    </li>
+    <Link
+      href={`/t/${result.threadId}${result.postId ? `?page=${result.postPage ?? 1}#post-${result.postId}` : ""}`}
+      className="group block rounded-lg px-2 py-3 transition-colors hover:bg-muted/50"
+    >
+      <div className="flex items-center gap-1.5">
+        <Badge variant={result.type === "thread" ? "default" : "outline"}>
+          {result.type === "thread" ? "Thread" : "Post"}
+        </Badge>
+        <span className="text-xs text-muted-foreground">{result.boardName}</span>
+      </div>
+      <p className="mt-1 font-medium group-hover:underline">{result.threadTitle}</p>
+      {result.snippet && (
+        <p
+          className="mt-0.5 line-clamp-2 text-sm text-muted-foreground"
+          dangerouslySetInnerHTML={{ __html: result.snippet }}
+        />
+      )}
+      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1">
+          <UserAvatar name={result.authorUsername ?? "?"} size="sm" />
+          {result.authorUsername}
+        </span>
+        <span>
+          <RelativeTime ts={result.createdAt} />
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <MessageSquareIcon className="size-3.5" />
+          {result.replyCount}
+        </span>
+      </div>
+    </Link>
   );
 }

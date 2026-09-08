@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 import { Header } from "@/components/header";
 import { currentUserRSC, resolveTheme, unreadCountRSC } from "@/lib/session-rsc";
 import { forumName, forumTagline } from "@/lib/settings";
@@ -19,8 +20,8 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#020617" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
 };
 
@@ -45,7 +46,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <Header user={user} unread={unread} theme={theme.themeClass} />
         <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-6xl flex-col px-4 py-6 sm:px-6">
           <main className="flex-1">{children}</main>
-          <footer className="mt-10 border-t border-slate-200 pt-5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+          <footer className="mt-10 border-t pt-5 text-xs text-muted-foreground">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p>
                 © {new Date().getFullYear()} {forumName()} · Running on Cloudflare Workers
@@ -57,13 +58,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 <a href="/search" className="hover:underline">
                   Search
                 </a>
-                <a href="/admin" className="hover:underline">
-                  Moderation
-                </a>
+                {(user?.role === "admin" || user?.role === "moderator") && (
+                  <a href="/admin" className="hover:underline">
+                    Moderation
+                  </a>
+                )}
               </nav>
             </div>
           </footer>
         </div>
+        <Toaster />
       </body>
     </html>
   );

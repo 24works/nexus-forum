@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ResetPasswordForm } from "@/components/auth/reset-password-form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Reset password" };
 
@@ -11,19 +12,21 @@ export default async function ResetPasswordPage({
 }) {
   const { token } = await searchParams;
   return (
-    <div>
-      <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Choose a new password</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xl">Choose a new password</CardTitle>
+        <CardDescription>
           Enter and confirm your new password to finish resetting your account.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <ResetPasswordForm token={token ?? ""} />
+        <p className="text-center text-sm text-muted-foreground">
+          <Link href="/login" className="font-medium underline underline-offset-4 hover:no-underline">
+            Back to log in
+          </Link>
         </p>
-      </div>
-      <ResetPasswordForm token={token ?? ""} />
-      <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
-        <Link href="/login" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-          Back to log in
-        </Link>
-      </p>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Plus } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { currentUserRSC } from "@/lib/session-rsc";
 import { itemsPerPage } from "@/lib/settings";
 import { getBoardBySlugRow, boardVisibleTo, boardThreads, ThreadSort } from "@/lib/queries";
 import { getDb } from "@/lib/db";
 import { ThreadRow } from "@/components/thread-row";
-import { Card, Pagination, EmptyState, Badge } from "@/components/ui";
+import { ForumPagination } from "@/components/forum-pagination";
+import { EmptyState } from "@/components/empty-state";
+import { Badge } from "@/components/ui/badge";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export const dynamic = "force-dynamic";
 
@@ -45,72 +51,69 @@ export default async function BoardPage({
       {/* Breadcrumb + heading */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <nav className="mb-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-            <Link href="/" className="hover:text-indigo-600 dark:hover:text-indigo-400">
-              Home
-            </Link>
-            <span>/</span>
-            <span className="text-slate-700 dark:text-slate-200">{board.name}</span>
-          </nav>
+          <Breadcrumb className="mb-1">
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/">Home</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{board.name}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">{board.name}</h1>
-            {board.is_enabled === 0 && <Badge color="rose">Hidden</Badge>}
+            <h1 className="text-xl font-bold tracking-tight">{board.name}</h1>
+            {board.is_enabled === 0 && <Badge variant="destructive">Hidden</Badge>}
           </div>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{board.description}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{board.description}</p>
         </div>
-        <div className="flex items-center gap-2">
-          {user ? (
-            <Link
-              href={`/threads/new?board=${board.id}`}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
-            >
-              <Plus className="size-4" />
+        {user ? (
+          <Button asChild>
+            <Link href={`/threads/new?board=${board.id}`}>
+              <PlusIcon data-icon="inline-start" />
               New thread
             </Link>
-          ) : null}
-        </div>
+          </Button>
+        ) : null}
       </div>
 
       {/* Sort tabs */}
       <div className="flex flex-wrap gap-1.5">
         {SORTS.map((s) => (
-          <Link
+          <Button
             key={s.key}
-            href={`/board/${board.slug}?sort=${s.key}`}
-            className={
-              "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors " +
-              (sort === s.key
-                ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800")
-            }
+            asChild
+            size="sm"
+            variant={sort === s.key ? "default" : "outline"}
           >
-            {s.label}
-          </Link>
+            <Link href={`/board/${board.slug}?sort=${s.key}`}>{s.label}</Link>
+          </Button>
         ))}
       </div>
 
       {/* Thread list */}
-      <Card noPad>
+      <Card className="py-2">
         {data.items.length === 0 ? (
-          <div className="p-5">
-            <EmptyState
-              title="No threads in this category yet"
-              description="Be the first to open a conversation."
-              action={
-                <Link
-                  href={`/threads/new?board=${board.id}`}
-                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-                >
-                  <Plus className="size-4" />
+          <EmptyState
+            title="No threads in this category yet"
+            description="Be the first to open a conversation."
+            action={
+              <Button asChild>
+                <Link href={`/threads/new?board=${board.id}`}>
+                  <PlusIcon data-icon="inline-start" />
                   Create the first thread
                 </Link>
-              }
-            />
-          </div>
+              </Button>
+            }
+          />
         ) : (
-          <ul className="divide-y divide-slate-100 px-4 sm:px-5 dark:divide-slate-800">
-            {data.items.map((thread) => (
+          <ul className="px-2">
+            {data.items.map((thread, idx) => (
               <li key={thread.id}>
+                {idx > 0 && <Separator />}
                 <ThreadRow thread={thread} showBoard={false} />
               </li>
             ))}
@@ -118,7 +121,7 @@ export default async function BoardPage({
         )}
       </Card>
 
-      <Pagination page={data.page} totalPages={data.totalPages} buildHref={buildHref} />
+      <ForumPagination page={data.page} totalPages={data.totalPages} buildHref={buildHref} />
     </div>
   );
 }

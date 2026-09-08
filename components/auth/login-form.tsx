@@ -1,14 +1,16 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { LogIn } from "lucide-react";
-import { Button, Input } from "@/components/ui";
+import { useSearchParams } from "next/navigation";
+import { LogInIcon } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api-client";
 
 export function LoginForm() {
-  const router = useRouter();
   const sp = useSearchParams();
   const redirect = sp.get("next");
   const [username, setUsername] = useState("");
@@ -30,8 +32,9 @@ export function LoginForm() {
         setBusy(false);
         return;
       }
-      router.push(isSafeLocalPath(redirect) ? redirect! : "/");
-      router.refresh();
+      // The session cookie must be visible to a fresh server render —
+      // the cached client layout would keep showing the signed-out header.
+      window.location.assign(isSafeLocalPath(redirect) ? redirect! : "/");
     } catch {
       setError("A network error occurred.");
       setBusy(false);
@@ -39,30 +42,40 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <Input
-        label="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        autoComplete="username"
-        required
-        autoFocus
-      />
-      <Input
-        label="Password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        autoComplete="current-password"
-        required
-      />
-      {error && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">{error}</p>
-      )}
-      <Button type="submit" disabled={busy} className="w-full">
-        <LogIn className="size-4" />
-        {busy ? "Signing in…" : "Sign in"}
-      </Button>
+    <form onSubmit={submit}>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor="login-username">Username</FieldLabel>
+          <Input
+            id="login-username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            required
+            autoFocus
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="login-password">Password</FieldLabel>
+          <Input
+            id="login-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </Field>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? <Spinner data-icon="inline-start" /> : <LogInIcon data-icon="inline-start" />}
+          {busy ? "Signing in…" : "Sign in"}
+        </Button>
+      </FieldGroup>
     </form>
   );
 }

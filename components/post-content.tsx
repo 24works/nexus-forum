@@ -1,4 +1,4 @@
-import { cn } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
 /**
  * Renders the already-sanitized HTML produced by lib/markdown.ts.

@@ -2,8 +2,21 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Eye, Pencil, Tags } from "lucide-react";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { EyeIcon, PencilIcon, SendIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { renderMarkdown } from "@/lib/markdown";
 import { PostContent } from "@/components/post-content";
 import { api } from "@/lib/api-client";
@@ -15,14 +28,17 @@ export interface BoardChoice {
 
 export function ThreadCreateForm({ boards, initialBoard }: { boards: BoardChoice[]; initialBoard?: number }) {
   const router = useRouter();
-  const [boardId, setBoardId] = useState(initialBoard && boards.some((b) => b.id === initialBoard) ? initialBoard : boards[0]?.id ?? 0);
+  const [boardId, setBoardId] = useState(
+    String(initialBoard && boards.some((b) => b.id === initialBoard) ? initialBoard : boards[0]?.id ?? 0)
+  );
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tags, setTags] = useState("");
-  const [mode, setMode] = useState<"write" | "preview">("write");
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const fieldInvalid = (name: string) => (fieldError === name ? true : undefined);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -33,7 +49,7 @@ export function ThreadCreateForm({ boards, initialBoard }: { boards: BoardChoice
       const res = await api<{ url?: string; threadId?: number }>("/api/threads", {
         method: "POST",
         json: {
-          boardId,
+          boardId: Number(boardId),
           title,
           content,
           tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
@@ -54,102 +70,106 @@ export function ThreadCreateForm({ boards, initialBoard }: { boards: BoardChoice
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <Select
-        label="Category"
-        value={boardId}
-        onChange={(e) => setBoardId(Number(e.target.value))}
-        error={fieldError === "boardId" ? error ?? undefined : undefined}
-      >
-        {boards.map((b) => (
-          <option key={b.id} value={b.id}>
-            {b.name}
-          </option>
-        ))}
-      </Select>
+    <form onSubmit={submit}>
+      <FieldGroup>
+        <Field data-invalid={fieldInvalid("boardId")} data-disabled={boards.length === 0 ? true : undefined}>
+          <FieldLabel htmlFor="thread-board">Category</FieldLabel>
+          <Select value={boardId} onValueChange={setBoardId} disabled={boards.length === 0}>
+            <SelectTrigger id="thread-board" aria-invalid={fieldInvalid("boardId")}>
+              <SelectValue placeholder="Choose a category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {boards.map((b) => (
+                  <SelectItem key={b.id} value={String(b.id)}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          {fieldError === "boardId" && error && <p className="text-xs text-destructive">{error}</p>}
+        </Field>
 
-      <Input
-        label="Title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        required
-        minLength={3}
-        maxLength={120}
-        placeholder="A clear, descriptive title"
-        error={fieldError === "title" ? error ?? undefined : undefined}
-      />
-
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Message</span>
-          <div className="flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
-            <ModeTab active={mode === "write"} onClick={() => setMode("write")} icon={<Pencil className="size-3.5" />} label="Write" />
-            <ModeTab active={mode === "preview"} onClick={() => setMode("preview")} icon={<Eye className="size-3.5" />} label="Preview" />
-          </div>
-        </div>
-        {mode === "write" ? (
-          <Textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={10}
+        <Field data-invalid={fieldInvalid("title")}>
+          <FieldLabel htmlFor="thread-title">Title</FieldLabel>
+          <Input
+            id="thread-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             required
-            minLength={1}
-            placeholder={"Write your thread… Supports **markdown**, `code`, links and @mentions:\n\n**bold**, *italic*, > quotes, lists, ``` code blocks ```"}
-            error={fieldError === "content" ? error ?? undefined : undefined}
+            minLength={3}
+            maxLength={120}
+            placeholder="A clear, descriptive title"
+            aria-invalid={fieldInvalid("title")}
           />
-        ) : (
-          <div className="min-h-40 rounded-lg border border-slate-200 p-4 dark:border-slate-700">
-            {content.trim() ? (
-              <PostContent html={renderMarkdown(content).html} />
-            ) : (
-              <p className="text-sm text-slate-400">Nothing to preview yet.</p>
-            )}
+          {fieldError === "title" && error && <p className="text-xs text-destructive">{error}</p>}
+        </Field>
+
+        <Tabs defaultValue="write">
+          <div className="mb-2 flex items-center justify-between">
+            <FieldLabel htmlFor="thread-content">Message</FieldLabel>
+            <TabsList>
+              <TabsTrigger value="write">
+                <PencilIcon data-icon="inline-start" />
+                Write
+              </TabsTrigger>
+              <TabsTrigger value="preview">
+                <EyeIcon data-icon="inline-start" />
+                Preview
+              </TabsTrigger>
+            </TabsList>
           </div>
+          <TabsContent value="write">
+            <Textarea
+              id="thread-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={10}
+              required
+              minLength={1}
+              placeholder={
+                "Write your thread… Supports **markdown**, `code`, links and @mentions:\n\n**bold**, *italic*, > quotes, lists, ``` code blocks ```"
+              }
+              aria-invalid={fieldInvalid("content")}
+            />
+            {fieldError === "content" && error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
+          </TabsContent>
+          <TabsContent value="preview">
+            <div className="min-h-40 rounded-lg border p-4">
+              {content.trim() ? (
+                <PostContent html={renderMarkdown(content).html} />
+              ) : (
+                <p className="text-sm text-muted-foreground">Nothing to preview yet.</p>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <Field data-invalid={fieldInvalid("tags")}>
+          <FieldLabel htmlFor="thread-tags">Tags (optional, comma separated, max 5)</FieldLabel>
+          <Input
+            id="thread-tags"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            maxLength={120}
+            aria-invalid={fieldInvalid("tags")}
+          />
+          {fieldError === "tags" && error && <p className="text-xs text-destructive">{error}</p>}
+        </Field>
+
+        {fieldError && !["boardId", "title", "content", "tags"].includes(fieldError) && error && (
+          <p className="text-sm text-destructive">{error}</p>
         )}
-      </div>
 
-      <Input
-        label="Tags (optional, comma separated, max 5)"
-        value={tags}
-        onChange={(e) => setTags(e.target.value)}
-        maxLength={120}
-        error={fieldError === "tags" ? error ?? undefined : undefined}
-      />
-
-      {fieldError && (
-        <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600 dark:bg-rose-500/10 dark:text-rose-400">
-          {error}
-        </p>
-      )}
-
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-slate-400 dark:text-slate-500">
-          <Tags className="mr-1 inline size-3" />
-          Be specific, stay on topic.
-        </p>
-        <Button type="submit" disabled={busy || boards.length === 0}>
-          <Send className="size-4" />
-          {busy ? "Posting…" : "Create thread"}
-        </Button>
-      </div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">Be specific, stay on topic.</p>
+          <Button type="submit" disabled={busy || boards.length === 0}>
+            {busy ? <Spinner data-icon="inline-start" /> : <SendIcon data-icon="inline-start" />}
+            {busy ? "Posting…" : "Create thread"}
+          </Button>
+        </div>
+      </FieldGroup>
     </form>
-  );
-}
-
-function ModeTab({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
-        (active
-          ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white"
-          : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")
-      }
-    >
-      {icon}
-      {label}
-    </button>
   );
 }

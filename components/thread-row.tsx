@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { MessageSquare, Pin, Megaphone, Lock, Eye, User2 } from "lucide-react";
+import { LockIcon, MegaphoneIcon, MessageSquareIcon, PinIcon } from "lucide-react";
 import { pluralize } from "@/lib/time";
 import { ThreadView } from "@/lib/queries";
-import { Badge, Avatar, cn } from "@/components/ui";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/user-avatar";
 import { RelativeTime } from "@/components/time";
 
 export function ThreadRow({
@@ -20,62 +22,50 @@ export function ThreadRow({
   return (
     // The whole row is a single link. Inner title/board-links are plain spans:
     // HTML forbids nesting <a> inside <a>, which would break hydration.
-    <Link href={href} className="group block">
-      <div className="flex items-start gap-4 py-3">
+    <Link href={href} className="group block rounded-lg transition-colors hover:bg-muted/50">
+      <div className="flex items-start gap-4 px-2 py-3">
         <div className="flex w-full min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-1.5">
             {thread.is_announcement ? (
-              <Badge color="amber">
-                <Megaphone className="size-3" /> Announcement
+              <Badge>
+                <MegaphoneIcon data-icon="inline-start" />
+                Announcement
               </Badge>
             ) : null}
             {thread.is_pinned ? (
-              <Badge color="sky">
-                <Pin className="size-3" /> Pinned
+              <Badge variant="secondary">
+                <PinIcon data-icon="inline-start" />
+                Pinned
               </Badge>
             ) : null}
             {thread.is_locked ? (
-              <Badge color="slate">
-                <Lock className="size-3" /> Locked
+              <Badge variant="outline">
+                <LockIcon data-icon="inline-start" />
+                Locked
               </Badge>
             ) : null}
           </div>
 
           <span
             className={cn(
-              "line-clamp-1 font-medium text-slate-900 transition-colors group-hover:text-indigo-600 dark:text-slate-100 dark:group-hover:text-indigo-400",
-              thread.is_locked === 1 ? "opacity-80" : undefined
+              "line-clamp-1 font-medium transition-colors group-hover:underline",
+              thread.is_locked === 1 && "opacity-80"
             )}
           >
             {thread.title}
           </span>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-            {showBoard && (
-              <span className="inline-flex items-center gap-1">
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  {thread.board_name}
-                </span>
-              </span>
-            )}
-            {showAuthor && (
-              <span className="inline-flex items-center gap-1">
-                <User2 className="size-3" />
-                <span className="hover:underline">{thread.author_username}</span>
-              </span>
-            )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {showBoard && thread.board_name && <Badge variant="outline">{thread.board_name}</Badge>}
             <span className="inline-flex items-center gap-1">
-              <User2 className="size-3" />
-              {thread.author_username}
+              <UserAvatar name={thread.author_username ?? "?"} size="sm" />
+              {thread.author_username ?? "Unknown"}
             </span>
             <span className="inline-flex items-center gap-1">
-              <Eye className="size-3.5" />
-              {thread.views}
+              <MessageSquareIcon className="size-3.5" />
+              {pluralize(thread.reply_count, "reply", "replies")}
             </span>
-            <span className="inline-flex items-center gap-1">
-              <MessageSquare className="size-3.5" />
-              {thread.reply_count}
-            </span>
+            <span>{thread.views.toLocaleString()} views</span>
             <RelativeTime ts={thread.created_at} />
 
             {thread.tags
@@ -83,14 +73,14 @@ export function ThreadRow({
               .filter(Boolean)
               .slice(0, 3)
               .map((tag) => (
-                <Badge key={tag} color="violet">
+                <Badge key={tag} variant="secondary">
                   #{tag}
                 </Badge>
               ))}
 
             {showBoard && thread.last_reply_at ? (
               <span className="inline-flex items-center gap-1">
-                <Avatar name={lastBy ?? "?"} size={16} className="rounded-full" />
+                <UserAvatar name={lastBy ?? "?"} size="sm" />
                 <RelativeTime ts={thread.last_reply_at} />
               </span>
             ) : null}
@@ -98,13 +88,11 @@ export function ThreadRow({
         </div>
 
         {thread.last_reply_at ? (
-          <div className="hidden w-40 flex-col items-end gap-0.5 sm:flex">
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              <RelativeTime ts={thread.last_reply_at} />
-            </span>
+          <div className="hidden w-36 shrink-0 flex-col items-end gap-0.5 text-xs text-muted-foreground sm:flex">
+            <RelativeTime ts={thread.last_reply_at} />
             {showBoard && (
-              <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                <Avatar name={lastBy ?? "?"} size={18} className="rounded-full" />
+              <span className="inline-flex items-center gap-1">
+                <UserAvatar name={lastBy ?? "?"} size="sm" />
                 {lastBy}
               </span>
             )}

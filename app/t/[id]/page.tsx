@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Lock, Megaphone, Pin } from "lucide-react";
+import { ArrowLeftIcon, LockIcon, MegaphoneIcon, PinIcon } from "lucide-react";
 import { currentUserRSC } from "@/lib/session-rsc";
 import { itemsPerPage } from "@/lib/settings";
 import { getThreadView, threadPosts, boardVisibleTo, getBoardRow, listBoards, getThreadPostsForQuote, publicUserById } from "@/lib/queries";
@@ -11,7 +11,12 @@ import { PostRow } from "@/components/post-row";
 import { ReplyForm } from "@/components/reply-form";
 import { ThreadModActions } from "@/components/thread-mod-actions";
 import { ViewTracker } from "@/components/view-tracker";
-import { Card, Badge, Pagination } from "@/components/ui";
+import { ForumPagination } from "@/components/forum-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export const dynamic = "force-dynamic";
 
@@ -61,42 +66,56 @@ export default async function ThreadPage({
       <ViewTracker threadId={threadId} />
 
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-        <Link href="/" className="hover:text-indigo-600 dark:hover:text-indigo-400">
-          Home
-        </Link>
-        <span>/</span>
-        <Link href={`/board/${thread.board_slug}`} className="hover:text-indigo-600 dark:hover:text-indigo-400">
-          {thread.board_name}
-        </Link>
-        <span>/</span>
-        <span className="line-clamp-1 text-slate-700 dark:text-slate-200">{thread.title}</span>
-      </nav>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/">Home</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={`/board/${thread.board_slug}`}>{thread.board_name}</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="line-clamp-1">{thread.title}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       {/* Title area */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-1 flex flex-wrap items-center gap-1.5">
             {thread.is_announcement ? (
-              <Badge color="amber">
-                <Megaphone className="size-3" /> Announcement
+              <Badge>
+                <MegaphoneIcon data-icon="inline-start" />
+                Announcement
               </Badge>
             ) : null}
             {thread.is_pinned ? (
-              <Badge color="sky">
-                <Pin className="size-3" /> Pinned
+              <Badge variant="secondary">
+                <PinIcon data-icon="inline-start" />
+                Pinned
               </Badge>
             ) : null}
             {thread.is_locked ? (
-              <Badge color="slate">
-                <Lock className="size-3" /> Locked
+              <Badge variant="outline">
+                <LockIcon data-icon="inline-start" />
+                Locked
               </Badge>
             ) : null}
-            {board.is_enabled === 0 && <Badge color="rose">Hidden category</Badge>}
+            {board.is_enabled === 0 && <Badge variant="destructive">Hidden category</Badge>}
           </div>
-          <h1 className="text-xl font-bold leading-snug text-slate-900 sm:text-2xl dark:text-white">{thread.title}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-            <Link href={`/u/${thread.author_username}`} className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+          <h1 className="text-xl font-bold leading-snug tracking-tight sm:text-2xl">{thread.title}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <Link
+              href={`/u/${thread.author_username}`}
+              className="font-medium underline underline-offset-4 hover:no-underline"
+            >
               {thread.author_username}
             </Link>
             <span>·</span>
@@ -106,17 +125,17 @@ export default async function ThreadPage({
           </div>
         </div>
 
-        <Link
-          href={`/board/${thread.board_slug}`}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-        >
-          <ArrowLeft className="size-3.5" /> Back to {thread.board_name}
-        </Link>
+        <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+          <Link href={`/board/${thread.board_slug}`}>
+            <ArrowLeftIcon data-icon="inline-start" />
+            Back to {thread.board_name}
+          </Link>
+        </Button>
       </div>
 
       {isMod && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-500/30 dark:bg-amber-500/10">
-          <span className="px-1 text-xs font-medium text-amber-700 dark:text-amber-300">Moderation:</span>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 p-2.5">
+          <span className="px-1 text-xs font-medium text-muted-foreground">Moderation:</span>
           <ThreadModActions
             threadId={threadId}
             boardId={thread.board_id}
@@ -130,7 +149,7 @@ export default async function ThreadPage({
       )}
 
       {/* Posts */}
-      <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
+      <Card className="overflow-hidden py-0">
         <PostRow
           post={{
             id: thread.id,
@@ -157,18 +176,20 @@ export default async function ThreadPage({
           opTags={thread.tags}
         />
         {data.items.map((post, idx) => (
-          <PostRow
-            key={post.id}
-            post={post}
-            threadId={threadId}
-            currentUser={user}
-            boardSlug={thread.board_slug ?? ""}
-            number={(data.page - 1) * perPage + idx + 2}
-          />
+          <div key={post.id}>
+            <Separator />
+            <PostRow
+              post={post}
+              threadId={threadId}
+              currentUser={user}
+              boardSlug={thread.board_slug ?? ""}
+              number={(data.page - 1) * perPage + idx + 2}
+            />
+          </div>
         ))}
-      </div>
+      </Card>
 
-      <Pagination page={data.page} totalPages={data.totalPages} buildHref={(p) => `/t/${threadId}?page=${p}`} />
+      <ForumPagination page={data.page} totalPages={data.totalPages} buildHref={(p) => `/t/${threadId}?page=${p}`} />
 
       {/* Reply form — remounts when a different quote is requested so the
           quoted text fills the editor on client-side navigation. */}
@@ -176,21 +197,23 @@ export default async function ThreadPage({
         canPost ? (
           <ReplyForm key={quoteText} threadId={threadId} locked={false} initialQuote={quoteText} />
         ) : (
-          <Card className="text-center">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+          <Card>
+            <CardContent className="text-center text-sm text-muted-foreground">
               This thread is locked and cannot receive new replies.
-            </p>
+            </CardContent>
           </Card>
         )
       ) : (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-6 text-sm dark:border-slate-800 dark:bg-slate-900">
-          <span className="text-slate-500 dark:text-slate-400">
-            <Link href="/login" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-              Log in
-            </Link>{" "}
-            to join the conversation.
-          </span>
-        </div>
+        <Card>
+          <CardContent className="flex items-center justify-center gap-2 py-5 text-center text-sm">
+            <span className="text-muted-foreground">
+              <Link href="/login" className="font-medium underline underline-offset-4 hover:no-underline">
+                Log in
+              </Link>{" "}
+              to join the conversation.
+            </span>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

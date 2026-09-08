@@ -2,8 +2,12 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Eye, Pencil } from "lucide-react";
-import { Button, Textarea } from "@/components/ui";
+import { EyeIcon, PencilIcon, SendIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { renderMarkdown } from "@/lib/markdown";
 import { PostContent } from "@/components/post-content";
 import { api } from "@/lib/api-client";
@@ -19,7 +23,6 @@ export function ReplyForm({
 }) {
   const router = useRouter();
   const [content, setContent] = useState(initialQuote ?? "");
-  const [mode, setMode] = useState<"write" | "preview">("write");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,61 +60,54 @@ export function ReplyForm({
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Post a reply</h3>
-        <div className="flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
-          <TabButton active={mode === "write"} onClick={() => setMode("write")} icon={<Pencil className="size-3.5" />} label="Write" />
-          <TabButton active={mode === "preview"} onClick={() => setMode("preview")} icon={<Eye className="size-3.5" />} label="Preview" />
-        </div>
-      </div>
+    <Card>
+      <CardContent>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          <Tabs defaultValue="write">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Post a reply</h3>
+              <TabsList>
+                <TabsTrigger value="write">
+                  <PencilIcon data-icon="inline-start" />
+                  Write
+                </TabsTrigger>
+                <TabsTrigger value="preview">
+                  <EyeIcon data-icon="inline-start" />
+                  Preview
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-      {mode === "write" ? (
-        <Textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder={'Write your reply… Supports **markdown**, `code`, links and @mentions.'}
-          rows={5}
-          error={error ?? undefined}
-          className="font-sans"
-        />
-      ) : (
-        <div className="min-h-24 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
-          {content.trim() ? (
-            <PostContent html={renderMarkdown(content).html} />
-          ) : (
-            <p className="text-sm text-slate-400">Nothing to preview yet.</p>
-          )}
-        </div>
-      )}
+            <TabsContent value="write">
+              <Textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder={"Write your reply… Supports **markdown**, `code`, links and @mentions."}
+                rows={5}
+                aria-invalid={error ? true : undefined}
+              />
+              {error && <p className="mt-1.5 text-xs text-destructive">{error}</p>}
+            </TabsContent>
+            <TabsContent value="preview">
+              <div className="min-h-24 rounded-lg border p-3">
+                {content.trim() ? (
+                  <PostContent html={renderMarkdown(content).html} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nothing to preview yet.</p>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-slate-400 dark:text-slate-500">
-          Markdown supported. Be kind and stay on topic.
-        </p>
-        <Button type="submit" disabled={busy}>
-          <Send className="size-4" />
-          {busy ? "Posting…" : "Post reply"}
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        "inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors " +
-        (active
-          ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white"
-          : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")
-      }
-    >
-      {icon}
-      {label}
-    </button>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">Markdown supported. Be kind and stay on topic.</p>
+            <Button type="submit" disabled={busy}>
+              {busy ? <Spinner data-icon="inline-start" /> : <SendIcon data-icon="inline-start" />}
+              {busy ? "Posting…" : "Post reply"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

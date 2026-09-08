@@ -8,8 +8,31 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Undo2, Plus } from "lucide-react";
-import { Button, Input, Select } from "@/components/ui";
+import { CheckIcon, PlusIcon, Undo2Icon } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api-client";
 
 // ---------------------------------------------------------------------------
@@ -19,35 +42,35 @@ import { api } from "@/lib/api-client";
 export function ReportActions({ reportId, status }: { reportId: number; status: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   if (status !== "open") return null;
 
   const act = async (action: "resolve" | "dismiss") => {
     setBusy(true);
-    setError(null);
     try {
       const res = await api(`/api/admin/reports/${reportId}`, {
         method: "PATCH",
         json: { action },
       });
       if (res.ok) router.refresh();
-      else setError(res.error ?? "Action failed.");
+      else toast.error(res.error ?? "Action failed.");
     } catch {
-      setError("A network error occurred.");
+      toast.error("A network error occurred.");
     }
     setBusy(false);
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" variant="success" disabled={busy} onClick={() => act("resolve")}>
-        <Check className="size-3.5" /> Resolve
+    <div className="flex flex-wrap items-center gap-1.5">
+      <Button size="sm" variant="secondary" disabled={busy} onClick={() => act("resolve")}>
+        <CheckIcon data-icon="inline-start" />
+        Resolve
       </Button>
       <Button size="sm" variant="ghost" disabled={busy} onClick={() => act("dismiss")}>
-        <Undo2 className="size-3.5" /> Dismiss
+        <Undo2Icon data-icon="inline-start" />
+        Dismiss
       </Button>
-      {error && <span className="text-xs text-rose-600 dark:text-rose-400">{error}</span>}
+      {busy && <Spinner className="size-3.5 text-muted-foreground" />}
     </div>
   );
 }
@@ -71,7 +94,7 @@ export function UserActions({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [banReason, setBanReason] = useState("");
 
   // Moderators may only act on ordinary members; admins on anyone but
   // themselves (via this panel).
@@ -80,53 +103,80 @@ export function UserActions({
 
   const act = async (json: Record<string, unknown>) => {
     setBusy(true);
-    setError(null);
     try {
       const res = await api(`/api/admin/users/${userId}`, { method: "PATCH", json });
       if (res.ok) router.refresh();
-      else setError(res.error ?? "Action failed.");
+      else toast.error(res.error ?? "Action failed.");
     } catch {
-      setError("A network error occurred.");
+      toast.error("A network error occurred.");
     }
     setBusy(false);
   };
 
-  const ban = () => {
-    const reason = window.prompt("Reason for banning this user?");
-    if (reason === null) return;
-    void act({ action: "ban", reason });
-  };
-
   const changeRole = (nextRole: string) => {
-    if (!window.confirm(`Change this user's role to "${nextRole}"?`)) return;
     void act({ action: "role", role: nextRole });
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       {status === "active" ? (
-        <Button size="sm" variant="danger" disabled={busy} onClick={ban}>
-          Ban
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="destructive" disabled={busy}>
+              Ban
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Ban this user?</AlertDialogTitle>
+              <AlertDialogDescription>
+                The user will no longer be able to sign in or post.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Field>
+              <FieldLabel htmlFor={`ban-reason-${userId}`}>Reason</FieldLabel>
+              <Input
+                id={`ban-reason-${userId}`}
+                value={banReason}
+                onChange={(e) => setBanReason(e.target.value)}
+                placeholder="Shown to moderators in the audit log"
+                maxLength={300}
+              />
+            </Field>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={() => {
+                  void act({ action: "ban", reason: banReason });
+                  setBanReason("");
+                }}
+              >
+                Ban user
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       ) : (
-        <Button size="sm" variant="success" disabled={busy} onClick={() => act({ action: "unban" })}>
+        <Button size="sm" variant="secondary" disabled={busy} onClick={() => act({ action: "unban" })}>
           Unban
         </Button>
       )}
       {viewerRole === "admin" && (
-        <Select
-          aria-label="Change role"
-          value={role}
-          disabled={busy}
-          onChange={(e) => changeRole(e.target.value)}
-          className="w-32"
-        >
-          <option value="member">Member</option>
-          <option value="moderator">Moderator</option>
-          <option value="admin">Admin</option>
+        <Select value={role} onValueChange={changeRole} disabled={busy}>
+          <SelectTrigger className="h-7 w-32 text-xs" aria-label="Change role">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="member">Member</SelectItem>
+              <SelectItem value="moderator">Moderator</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectGroup>
+          </SelectContent>
         </Select>
       )}
-      {error && <span className="text-xs text-rose-600 dark:text-rose-400">{error}</span>}
+      {busy && <Spinner className="size-3.5 text-muted-foreground" />}
     </div>
   );
 }
@@ -167,25 +217,49 @@ export function BoardCreateForm() {
   };
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} maxLength={60} />
-        <Input
-          label="Slug"
-          value={slug}
-          onChange={(e) => setSlug(e.target.value.toLowerCase())}
-          required
-          pattern="[a-z0-9]+(-[a-z0-9]+)*"
-          placeholder="my-category"
-        />
-      </div>
-      <Input label="Description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={200} />
-      {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
-      <div>
-        <Button type="submit" size="sm" disabled={busy}>
-          <Plus className="size-3.5" /> {busy ? "Creating…" : "Create category"}
-        </Button>
-      </div>
+    <form onSubmit={submit}>
+      <FieldGroup>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field>
+            <FieldLabel htmlFor="board-name">Name</FieldLabel>
+            <Input
+              id="board-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              minLength={2}
+              maxLength={60}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="board-slug">Slug</FieldLabel>
+            <Input
+              id="board-slug"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value.toLowerCase())}
+              required
+              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              placeholder="my-category"
+            />
+          </Field>
+        </div>
+        <Field>
+          <FieldLabel htmlFor="board-description">Description</FieldLabel>
+          <Input
+            id="board-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={200}
+          />
+        </Field>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <div>
+          <Button type="submit" size="sm" disabled={busy}>
+            {busy ? <Spinner data-icon="inline-start" /> : <PlusIcon data-icon="inline-start" />}
+            {busy ? "Creating…" : "Create category"}
+          </Button>
+        </div>
+      </FieldGroup>
     </form>
   );
 }
@@ -230,76 +304,88 @@ export function BoardRowActions({
 
   if (editing) {
     return (
-      <div className="mt-2 flex w-full flex-col gap-2 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Input
-            label="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            maxLength={60}
-          />
-          <Select
-            label="Visibility"
-            value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
-          >
-            <option value="everyone">Everyone</option>
-            <option value="member">Signed-in members</option>
-            <option value="moderator">Moderators+</option>
-            <option value="admin">Admins only</option>
-          </Select>
-        </div>
-        <Input
-          label="Description"
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          maxLength={200}
-        />
-        <Input
-          label="Position"
-          type="number"
-          value={form.position}
-          onChange={(e) => setForm({ ...form, position: e.target.value })}
-        />
-        {error && <p className="text-xs text-rose-600 dark:text-rose-400">{error}</p>}
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            disabled={busy}
-            onClick={async () => {
-              const ok = await patch({
-                name: form.name,
-                description: form.description,
-                role: form.role,
-                position: Number(form.position),
-              });
-              if (ok) setEditing(false);
-            }}
-          >
-            Save
-          </Button>
-          <Button size="sm" variant="ghost" disabled={busy} onClick={() => setEditing(false)}>
-            Cancel
-          </Button>
-        </div>
+      <div className="mt-2 w-full rounded-lg border p-3">
+        <FieldGroup className="gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor={`board-name-${boardId}`}>Name</FieldLabel>
+              <Input
+                id={`board-name-${boardId}`}
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                maxLength={60}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`board-role-${boardId}`}>Visibility</FieldLabel>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
+                <SelectTrigger id={`board-role-${boardId}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="everyone">Everyone</SelectItem>
+                    <SelectItem value="member">Signed-in members</SelectItem>
+                    <SelectItem value="moderator">Moderators+</SelectItem>
+                    <SelectItem value="admin">Admins only</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel htmlFor={`board-description-${boardId}`}>Description</FieldLabel>
+            <Input
+              id={`board-description-${boardId}`}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              maxLength={200}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`board-position-${boardId}`}>Position</FieldLabel>
+            <Input
+              id={`board-position-${boardId}`}
+              type="number"
+              value={form.position}
+              onChange={(e) => setForm({ ...form, position: e.target.value })}
+            />
+          </Field>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              disabled={busy}
+              onClick={async () => {
+                const ok = await patch({
+                  name: form.name,
+                  description: form.description,
+                  role: form.role,
+                  position: Number(form.position),
+                });
+                if (ok) setEditing(false);
+              }}
+            >
+              Save
+            </Button>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+          </div>
+        </FieldGroup>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       <Button size="sm" variant="outline" disabled={busy} onClick={() => setEditing(true)}>
         Edit
       </Button>
-      <Button
-        size="sm"
-        variant={isEnabled ? "ghost" : "success"}
-        disabled={busy}
-        onClick={() => patch({ is_enabled: !isEnabled })}
-      >
+      <Button size="sm" variant={isEnabled ? "ghost" : "secondary"} disabled={busy} onClick={() => patch({ is_enabled: !isEnabled })}>
         {isEnabled ? "Hide" : "Show"}
       </Button>
-      {error && <span className="text-xs text-rose-600 dark:text-rose-400">{error}</span>}
+      {error && <span className="text-xs text-destructive">{error}</span>}
     </div>
   );
 }

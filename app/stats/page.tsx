@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Users, FileText, MessageSquare, Activity, Trophy, Sparkles } from "lucide-react";
+import { ActivityIcon, FileTextIcon, MessageSquareIcon, SparklesIcon, TrophyIcon, UsersIcon } from "lucide-react";
 import { siteStats, topPosters, latestMembers, activeThreads } from "@/lib/queries";
-import { Card, Stat, Avatar, SectionHeading, EmptyState } from "@/components/ui";
+import { Stat } from "@/components/stat";
+import { SectionHeading } from "@/components/section-heading";
+import { EmptyState } from "@/components/empty-state";
+import { UserAvatar } from "@/components/user-avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { RelativeTime, FormattedDate } from "@/components/time";
 
 export const metadata: Metadata = { title: "Stats" };
@@ -19,10 +24,8 @@ export default async function StatsPage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Forum statistics</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          A quick look at community activity.
-        </p>
+        <h1 className="text-xl font-bold tracking-tight">Forum statistics</h1>
+        <p className="mt-1 text-sm text-muted-foreground">A quick look at community activity.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -34,7 +37,7 @@ export default async function StatsPage() {
           label="Online now"
           value={
             <span className="inline-flex items-center gap-1.5">
-              <Activity className="size-5 text-emerald-500" />
+              <ActivityIcon className="size-5" />
               {stats.onlineUsers.toLocaleString()}
             </span>
           }
@@ -43,86 +46,86 @@ export default async function StatsPage() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
-          <SectionHeading title="Top posters" />
-          {posters.length === 0 ? (
-            <EmptyState title="No posts yet" icon={<Trophy className="size-8" />} />
-          ) : (
-            <ul className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
-              {posters.map((p, i) => (
-                <li key={p.id} className="flex items-center gap-3 py-2.5">
-                  <span className="w-5 text-center text-xs font-semibold text-slate-400">{i + 1}</span>
-                  <Avatar name={p.username} size={28} />
-                  <Link
-                    href={`/u/${p.username}`}
-                    className="flex-1 truncate text-sm font-medium text-slate-800 hover:text-indigo-600 dark:text-slate-100 dark:hover:text-indigo-400"
-                  >
-                    {p.username}
-                  </Link>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">{p.post_count} posts</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <CardContent>
+            <SectionHeading title="Top posters" />
+            {posters.length === 0 ? (
+              <EmptyState title="No posts yet" icon={<TrophyIcon />} />
+            ) : (
+              <ul>
+                {posters.map((p, i) => (
+                  <li key={p.id} className="flex items-center gap-3 border-t py-2.5 first:border-t-0">
+                    <span className="w-5 text-center text-xs font-semibold text-muted-foreground">{i + 1}</span>
+                    <UserAvatar name={p.username} size="sm" />
+                    <Link
+                      href={`/u/${p.username}`}
+                      className="flex-1 truncate text-sm font-medium hover:underline"
+                    >
+                      {p.username}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">{p.post_count} posts</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
         </Card>
 
         <Card>
-          <SectionHeading title="Newest members" />
-          <ul className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
-            {members.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 py-2.5">
-                <Avatar name={m.username} size={28} />
-                <Link
-                  href={`/u/${m.username}`}
-                  className="flex-1 truncate text-sm font-medium text-slate-800 hover:text-indigo-600 dark:text-slate-100 dark:hover:text-indigo-400"
-                >
-                  {m.username}
-                </Link>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  joined <RelativeTime ts={m.created_at} />
-                </span>
-              </li>
-            ))}
-          </ul>
+          <CardContent>
+            <SectionHeading title="Newest members" />
+            <ul>
+              {members.map((m) => (
+                <li key={m.id} className="flex items-center gap-3 border-t py-2.5 first:border-t-0">
+                  <UserAvatar name={m.username} size="sm" />
+                  <Link href={`/u/${m.username}`} className="flex-1 truncate text-sm font-medium hover:underline">
+                    {m.username}
+                  </Link>
+                  <span className="text-xs text-muted-foreground">
+                    joined <RelativeTime ts={m.created_at} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
         </Card>
       </div>
 
       <Card>
-        <SectionHeading title="Most active threads" />
-        {active.length === 0 ? (
-          <EmptyState title="No threads yet" icon={<Sparkles className="size-8" />} />
-        ) : (
-          <ul className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800">
-            {active.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center gap-2 py-2.5">
-                <Link
-                  href={`/t/${t.id}`}
-                  className="min-w-0 flex-1 truncate text-sm font-medium text-slate-800 hover:text-indigo-600 dark:text-slate-100 dark:hover:text-indigo-400"
-                >
-                  {t.title}
-                </Link>
-                <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                  <MessageSquare className="size-3.5" /> {t.reply_count}
-                </span>
-                <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                  <FileText className="size-3.5" /> {t.views} views
-                </span>
-                <span className="text-xs text-slate-400">
-                  <RelativeTime ts={t.last_reply_at ?? t.created_at} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <CardContent>
+          <SectionHeading title="Most active threads" />
+          {active.length === 0 ? (
+            <EmptyState title="No threads yet" icon={<SparklesIcon />} />
+          ) : (
+            <ul>
+              {active.map((t) => (
+                <li key={t.id} className="flex flex-wrap items-center gap-2 border-t py-2.5 first:border-t-0">
+                  <Link
+                    href={`/t/${t.id}`}
+                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+                  >
+                    {t.title}
+                  </Link>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <MessageSquareIcon className="size-3.5" /> {t.reply_count}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <FileTextIcon className="size-3.5" /> {t.views} views
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    <RelativeTime ts={t.last_reply_at ?? t.created_at} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
       </Card>
 
       {stats.newestUser && (
-        <p className="flex items-center justify-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
-          <Users className="size-4" />
+        <p className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+          <UsersIcon className="size-4" />
           Please welcome our newest member,{" "}
-          <Link
-            href={`/u/${stats.newestUser.username}`}
-            className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-          >
+          <Link href={`/u/${stats.newestUser.username}`} className="font-medium underline underline-offset-4 hover:no-underline">
             {stats.newestUser.username}
           </Link>
           , who joined <FormattedDate ts={stats.newestUser.created_at} />.
