@@ -124,7 +124,7 @@ vite.config.ts        # vinext + Cloudflare Vite 插件配置
 | 威胁 | 对策 |
 |---|---|
 | CSRF | 所有写请求校验 `Origin` 与 Host 同源（`assertSameOrigin`）+ 会话 Cookie `SameSite=Lax` |
-| 密码泄露 | PBKDF2-SHA256（15 万次迭代）+ 每用户随机盐 + 可选 pepper（来自 `SESSION_SECRET`），常量时间比较 |
+| 密码泄露 | PBKDF2-SHA256（10 万次迭代，Workers 上限）+ 每用户随机盐 + 可选 pepper（来自 `SESSION_SECRET`），常量时间比较 |
 | 越权 | 管理/版主接口强制 `requireRole`；主题编辑/删除校验作者或版主身份；会话失效用户被拒绝 |
 | 暴力破解 | 登录限流（IP 10 次/10 分钟 + 账户 20 次/15 分钟）、注册限流、找回密码限流（均在 `FORUM_RATE_LIMIT_ENABLED` 开启时生效） |
 | 存储型 XSS | Markdown 先整体 HTML 转义再做渲染，渲染器只生成安全标签；URL 白名单（禁 `javascript:` 等）；最后再做一次消毒 |

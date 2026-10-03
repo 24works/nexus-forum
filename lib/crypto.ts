@@ -29,7 +29,8 @@ export function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export const PBKDF2_ITERATIONS = 150000;
+// Workers' Web Crypto rejects PBKDF2 iterations above 100000 (NotSupportedError).
+export const PBKDF2_ITERATIONS = 100000;
 export const PBKDF2_KEY_BYTES = 32;
 
 async function deriveKey(password: string, salt: Uint8Array, iterations: number): Promise<Uint8Array> {

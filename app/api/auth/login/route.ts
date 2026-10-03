@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const password = typeof body.password === "string" ? body.password : "";
     const valid = user
       ? await verifyPassword(password, user.password_hash, getPepper())
-      : await verifyPassword(password, "pbkdf2$150000$0000000000000000$0000000000000000000000000000000000000000000000000000000000000000", getPepper());
+      : await verifyPassword(password, "pbkdf2$100000$0000000000000000$0000000000000000000000000000000000000000000000000000000000000000", getPepper());
 
     if (!user || !valid) {
       // Small artificial delay to throttle rapid guessing.

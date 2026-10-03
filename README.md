@@ -8,7 +8,7 @@
 - **论坛核心**：多板块（含角色可见性）、主题（置顶 / 锁定 / 公告 / 标签 / 移动）、回帖（引用 / 编辑审计）、浏览计数（按访客去重）
 - **社区能力**：FTS5 全文搜索（高亮 + LIKE 降级）、回复与 @提及通知、未读徽标、用户主页、个人设置、明暗主题（跟随系统 / 记忆偏好）
 - **治理后台**：`/admin` 面板 — 举报处理、用户管理（封禁 / 角色）、板块 CRUD、审计日志；`/stats` 社区统计页
-- **安全默认**：CSRF 同源校验、PBKDF2 密码哈希（15 万次迭代 + 盐 + 可选 pepper）、D1 限流、Markdown 消毒、参数化 SQL
+- **安全默认**：CSRF 同源校验、PBKDF2 密码哈希（10 万次迭代，符合 Workers 上限 + 盐 + 可选 pepper）、D1 限流、Markdown 消毒、参数化 SQL
 
 技术栈：vinext（Vite 上的 Next.js 实现）· Cloudflare Workers · D1（SQLite + FTS5）· Tailwind CSS v4 · shadcn/ui · TypeScript。
 
@@ -166,7 +166,7 @@ npx wrangler secret put RESEND_FROM      # 发件人，如 "Nexus Forum <noreply
 | 威胁 | 对策 |
 |---|---|
 | CSRF | 全部写请求校验 `Origin` 同源 + `SameSite=Lax` 会话 Cookie |
-| 密码泄露 | PBKDF2-SHA256（150k 迭代）+ 每用户随机盐 + 可选 pepper + 常量时间比较 |
+| 密码泄露 | PBKDF2-SHA256（100k 迭代，Workers 上限）+ 每用户随机盐 + 可选 pepper + 常量时间比较 |
 | 存储型 XSS | Markdown 先全量 HTML 转义再渲染；URL 白名单；搜索摘要转义后仅放行高亮标记 |
 | 越权 | 所有管理接口 `requireRole`；资源操作校验属主或版主身份与时间窗口 |
 | 暴力破解 / 刷量 | 基于 D1 的固定窗口限流（登录、注册、发帖、举报）；浏览计数每访客每小时每主题一次 |
